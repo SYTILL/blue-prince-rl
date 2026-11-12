@@ -1,0 +1,35 @@
+{
+  "config": {},
+  "seed_start": 1000000,
+  "ppo_model": "ppo-base",
+  "agents": {
+    "ppo": {
+      "games": 1000,
+      "win_rate": 0.075,
+      "avg_max_rank": 7.688,
+      "avg_return": 2.0503690000000003,
+      "avg_steps_spent": 43.056,
+      "avg_keys_left": 1.315,
+      "avg_gems_left": 1.867,
+      "avg_rooms_drafted": 18.853,
+      "loss_causes": {
+        "out_of_steps": 0.189,
+        "out_of_keys": 0.294,
+        "goal_keys": 0.183,
+        "no_doors": 0.259,
+        "truncated": 0.0
+      },
+      "max_rank_hist": {
+        "1": 0,
+        "2": 39,
+        "3": 38,
+        "4": 32,
+        "5": 29,
+        "6": 51,
+        "7": 96,
+        "8": 190,
+        "9": 525
+      }
+    }
+  }
+}

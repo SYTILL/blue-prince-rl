@@ -1,0 +1,64 @@
+{
+  "config": {},
+  "seed_start": 1000000,
+  "partial": false,
+  "requested_games": 200,
+  "agents": {
+    "random": {
+      "games": 200,
+      "win_rate": 0.0,
+      "avg_max_rank": 3.85,
+      "avg_return": 0.10241600000000001,
+      "avg_steps_spent": 26.35,
+      "avg_keys_left": 3.175,
+      "avg_gems_left": 2.02,
+      "avg_rooms_drafted": 10.505,
+      "loss_causes": {
+        "out_of_steps": 0.11,
+        "out_of_keys": 0.04,
+        "goal_keys": 0.0,
+        "no_doors": 0.85,
+        "truncated": 0.0
+      },
+      "max_rank_hist": {
+        "1": 0,
+        "2": 41,
+        "3": 53,
+        "4": 52,
+        "5": 22,
+        "6": 17,
+        "7": 11,
+        "8": 4,
+        "9": 0
+      }
+    },
+    "rule": {
+      "games": 200,
+      "win_rate": 0.25,
+      "avg_max_rank": 8.23,
+      "avg_return": 3.946262,
+      "avg_steps_spent": 48.325,
+      "avg_keys_left": 1.15,
+      "avg_gems_left": 2.125,
+      "avg_rooms_drafted": 25.05,
+      "loss_causes": {
+        "out_of_steps": 0.04,
+        "out_of_keys": 0.28,
+        "goal_keys": 0.245,
+        "no_doors": 0.185,
+        "truncated": 0.0
+      },
+      "max_rank_hist": {
+        "1": 0,
+        "2": 0,
+        "3": 2,
+        "4": 4,
+        "5": 2,
+        "6": 7,
+        "7": 23,
+        "8": 47,
+        "9": 115
+      }
+    }
+  }
+}

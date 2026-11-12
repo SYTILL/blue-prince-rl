@@ -1,0 +1,93 @@
+{
+  "config": {},
+  "seed_start": 1000000,
+  "partial": true,
+  "requested_games": 200,
+  "ppo_model": "ppo-cnn-s1",
+  "agents": {
+    "random": {
+      "games": 103,
+      "win_rate": 0.0,
+      "avg_max_rank": 3.7281553398058254,
+      "avg_return": 0.08820582524271844,
+      "avg_steps_spent": 25.87378640776699,
+      "avg_keys_left": 3.0776699029126213,
+      "avg_gems_left": 1.9902912621359223,
+      "avg_rooms_drafted": 10.184466019417476,
+      "loss_causes": {
+        "out_of_steps": 0.0970873786407767,
+        "out_of_keys": 0.038834951456310676,
+        "goal_keys": 0.0,
+        "no_doors": 0.8640776699029126,
+        "truncated": 0.0
+      },
+      "max_rank_hist": {
+        "1": 0,
+        "2": 25,
+        "3": 28,
+        "4": 24,
+        "5": 9,
+        "6": 10,
+        "7": 7,
+        "8": 0,
+        "9": 0
+      }
+    },
+    "rule": {
+      "games": 102,
+      "win_rate": 0.24509803921568626,
+      "avg_max_rank": 8.313725490196079,
+      "avg_return": 3.950839215686275,
+      "avg_steps_spent": 47.26470588235294,
+      "avg_keys_left": 0.9215686274509803,
+      "avg_gems_left": 1.8725490196078431,
+      "avg_rooms_drafted": 24.686274509803923,
+      "loss_causes": {
+        "out_of_steps": 0.029411764705882353,
+        "out_of_keys": 0.28431372549019607,
+        "goal_keys": 0.29411764705882354,
+        "no_doors": 0.14705882352941177,
+        "truncated": 0.0
+      },
+      "max_rank_hist": {
+        "1": 0,
+        "2": 0,
+        "3": 1,
+        "4": 2,
+        "5": 1,
+        "6": 2,
+        "7": 10,
+        "8": 24,
+        "9": 62
+      }
+    },
+    "ppo": {
+      "games": 102,
+      "win_rate": 0.08823529411764706,
+      "avg_max_rank": 7.803921568627451,
+      "avg_return": 2.1346617647058825,
+      "avg_steps_spent": 42.98039215686274,
+      "avg_keys_left": 1.3431372549019607,
+      "avg_gems_left": 1.7647058823529411,
+      "avg_rooms_drafted": 20.0,
+      "loss_causes": {
+        "out_of_steps": 0.19607843137254902,
+        "out_of_keys": 0.3333333333333333,
+        "goal_keys": 0.18627450980392157,
+        "no_doors": 0.19607843137254902,
+        "truncated": 0.0
+      },
+      "max_rank_hist": {
+        "1": 0,
+        "2": 0,
+        "3": 3,
+        "4": 3,
+        "5": 4,
+        "6": 9,
+        "7": 11,
+        "8": 24,
+        "9": 48
+      }
+    }
+  }
+}

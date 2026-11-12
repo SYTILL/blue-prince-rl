@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drafting Evaluation</title>
+<style>
+:root {
+  --bg: #f4f2ee; --panel: #ffffff; --panel-2: #f8f7f4; --ink: #1d1f24; --ink-2: #5b606b; --ink-3: #8c919b;
+  --line: #e2dfd8; --line-2: #cfcbc2; --accent: #2f6fd0; --accent-soft: #e3ecfa;
+  --win: #2f9e6a; --c-steps: #3b82c4; --c-keys: #d39a12; --c-gems: #2f9e6a; --bad: #cf4a3c;
+  --cause-steps: #6aa1d8; --cause-keys: #e4ae3a; --cause-goal: #c77b2f; --cause-doors: #a7abb3; --cause-trunc: #4b4f57;
+  --room: #ece9e2; --room-stroke: #b9b4a9; --start: #dfe9f8; --goal: #f6e7c4; --room-red: #f6dcd8;
+  --room-key: #f8eccb; --room-gem: #d9efe3; --room-step: #dde9f6; --empty: #e9e6df;
+  --bridge: #8c919b; --door-open: #ffffff; --door-lock: #e0a21a; --door-dead: #cf4a3c;
+  --shadow: 0 1px 2px rgba(20, 20, 30, .06), 0 2px 8px rgba(20, 20, 30, .04);
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171b; --panel: #1d2026; --panel-2: #23272e; --ink: #e8e9ec; --ink-2: #a7abb4; --ink-3: #777c86;
+    --line: #2d3139; --line-2: #3a3f49; --accent: #6ea2ef; --accent-soft: #233149;
+    --win: #4cc08a; --c-steps: #6ea2ef; --c-keys: #e9b843; --c-gems: #4cc08a; --bad: #ec6b5e;
+    --cause-steps: #5d8fc4; --cause-keys: #d1a138; --cause-goal: #c27a37; --cause-doors: #6c717b; --cause-trunc: #c9ccd2;
+    --room: #2b2f37; --room-stroke: #4a505b; --start: #263a57; --goal: #4a3d22; --room-red: #4d2a27;
+    --room-key: #47401f; --room-gem: #213f31; --room-step: #233650; --empty: #22252b;
+    --bridge: #8c919b; --door-open: #e8e9ec; --door-lock: #e9b843; --door-dead: #ec6b5e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--sans); }
+.wrap { max-width: 1440px; margin: 0 auto; padding: 20px 20px 48px; }
+header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+header h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -.01em; }
+header .sub { color: var(--ink-2); font-size: 13px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+.card h2 { margin: 0; font-size: 13px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px 0; flex-wrap: wrap; }
+.card-body { padding: 12px 14px 14px; }
+
+/* controls */
+.controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px; padding: 12px 14px; margin-bottom: 14px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); }
+.field input[type=number], .field input[type=text], select {
+  font: 13px var(--mono); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2);
+  border-radius: 6px; padding: 6px 8px; min-width: 0;
+}
+.field input[type=number] { width: 84px; }
+.field input.seed { width: 104px; }
+.agents-pick { display: flex; gap: 10px; flex-wrap: wrap; padding: 5px 0; }
+.agents-pick label { display: inline-flex; align-items: center; gap: 6px; font: 13px var(--sans); color: var(--ink); cursor: pointer; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.btn { font: 600 13px var(--sans); border-radius: 7px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--ink);
+  padding: 7px 14px; cursor: pointer; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.icon { padding: 5px 9px; font-size: 13px; min-width: 34px; }
+.spacer { flex: 1; }
+.status { display: flex; flex-direction: column; gap: 6px; min-width: 200px; font-size: 12px; color: var(--ink-2); }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.divider { width: 1px; align-self: stretch; background: var(--line); }
+
+/* KPIs */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.kpi { padding: 14px; }
+.kpi .name { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.kpi .big { font: 600 34px/1.1 var(--mono); margin: 8px 0 2px; font-variant-numeric: tabular-nums; }
+.kpi .big small { font-size: 14px; color: var(--ink-3); font-weight: 400; margin-left: 6px; }
+.kpi .note { color: var(--ink-3); font-size: 12px; }
+.kpi dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 0; }
+.kpi dt { font-size: 11px; color: var(--ink-3); }
+.kpi dd { margin: 0; font: 600 14px var(--mono); font-variant-numeric: tabular-nums; }
+.empty-note { padding: 18px; color: var(--ink-3); }
+
+/* charts */
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.chart svg { width: 100%; height: auto; display: block; }
+.legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+svg text { font-family: var(--sans); }
+.axis { fill: var(--ink-3); font-size: 10px; }
+.gridline { stroke: var(--line); stroke-width: 1; }
+
+/* main area */
+.main { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); gap: 14px; align-items: start; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.filters select, .filters input { font-size: 12px; padding: 5px 7px; }
+.filters input { width: 110px; font: 12px var(--mono); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; }
+.table-wrap { max-height: 720px; overflow: auto; border-top: 1px solid var(--line); margin-top: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { position: sticky; top: 0; background: var(--panel); text-align: right; font-weight: 600; color: var(--ink-2); padding: 7px 8px;
+  border-bottom: 1px solid var(--line); font-size: 11.5px; white-space: nowrap; }
+td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--line); font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+th:nth-child(-n+3), td:nth-child(-n+3) { text-align: left; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--panel-2); }
+tbody tr.sel { background: var(--accent-soft); }
+.chip { display: inline-flex; align-items: center; gap: 5px; font: 600 11.5px var(--sans); padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.chip.win { background: color-mix(in srgb, var(--win) 18%, transparent); color: var(--win); }
+.chip.loss { background: var(--panel-2); color: var(--ink-2); border: 1px solid var(--line); }
+.table-foot { font-size: 12px; color: var(--ink-3); padding: 8px 2px 0; }
+
+/* viewer */
+.viewer .card-body { display: grid; grid-template-columns: minmax(260px, 380px) minmax(0, 1fr); gap: 18px; }
+.viewer-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.viewer-title b { font: 600 15px var(--mono); }
+.tabs { display: inline-flex; border: 1px solid var(--line-2); border-radius: 7px; overflow: hidden; }
+.tabs button { font: 600 12px var(--sans); border: 0; background: var(--panel-2); color: var(--ink-2); padding: 5px 11px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.tabs button + button { border-left: 1px solid var(--line-2); }
+.tabs button.on { background: var(--accent-soft); color: var(--ink); }
+.board { width: 100%; height: auto; display: block; }
+.board .cell-empty { fill: var(--empty); }
+.board .room { stroke: var(--room-stroke); stroke-width: 1.2; }
+.board .rname { font-size: 8.6px; fill: var(--ink); font-weight: 600; }
+.board .rgain { font-size: 8.6px; font-family: var(--mono); font-weight: 700; }
+.board .lbl { font-size: 10px; fill: var(--ink-3); }
+.board .lockp { font-size: 9px; fill: var(--ink-3); font-family: var(--mono); }
+.board-legend { display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: 11.5px; color: var(--ink-2); margin-top: 8px; }
+.board-legend i { display: inline-block; width: 14px; height: 6px; border-radius: 1px; margin-right: 4px; vertical-align: middle; border: 1px solid var(--room-stroke); }
+.side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.player-ctl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.player-ctl input[type=range] { flex: 1; min-width: 120px; accent-color: var(--accent); }
+.player-ctl .count { font: 12px var(--mono); color: var(--ink-2); min-width: 72px; text-align: right; }
+.event { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-height: 44px; }
+.event .tag { font: 600 11px var(--sans); color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.stats div { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+.stats span { display: block; font-size: 11px; color: var(--ink-3); }
+.stats b { font: 600 16px var(--mono); font-variant-numeric: tabular-nums; }
+.offers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.offer { border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 12px; background: var(--panel); position: relative; }
+.offer.chosen { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.offer .o-name { font-weight: 650; font-size: 12.5px; }
+.offer .o-meta { color: var(--ink-3); font-size: 11px; }
+.offer .o-gain { font: 600 11.5px var(--mono); margin-top: 4px; }
+.offer .o-flag { position: absolute; top: 6px; right: 7px; font: 700 10px var(--sans); color: var(--accent); text-transform: uppercase; }
+.offer.cant { opacity: .55; }
+.section-label { font: 600 11px var(--sans); color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+.timeline svg { width: 100%; height: auto; display: block; cursor: pointer; }
+.log { max-height: 230px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.log ol { list-style: none; margin: 0; padding: 0; }
+.log li { display: grid; grid-template-columns: 34px 1fr; gap: 6px; padding: 5px 9px; font-size: 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.log li:last-child { border-bottom: 0; }
+.log li:hover { background: var(--panel-2); }
+.log li.cur { background: var(--accent-soft); }
+.log li span { color: var(--ink-3); font-family: var(--mono); }
+.c-steps { color: var(--c-steps); } .c-keys { color: var(--c-keys); } .c-gems { color: var(--c-gems); } .c-bad { color: var(--bad); }
+.placeholder { color: var(--ink-3); padding: 24px 4px; }
+.tabbar { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; margin-left: auto; }
+.tabbar button { font: 600 13px var(--sans); border: 0; background: var(--panel); color: var(--ink-2); padding: 7px 16px; cursor: pointer; }
+.tabbar button + button { border-left: 1px solid var(--line-2); }
+.tabbar button.on { background: var(--accent); color: #fff; }
+.charts2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.chart2 svg { width: 100%; height: auto; display: block; }
+.kpi .bar { margin-top: 10px; }
+.settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px 16px; font-size: 12.5px; }
+.settings div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); padding: 4px 0; }
+.settings span { color: var(--ink-3); }
+.settings b { font: 600 12.5px var(--mono); }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; padding-bottom: 6px; }
+[hidden] { display: none !important; }
+@media (max-width: 720px) { .charts2 { grid-template-columns: minmax(0, 1fr); } .tabbar { margin-left: 0; } }
+
+@media (max-width: 1180px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .wrap { padding: 14px 16px 40px; }
+  .viewer .card-body { grid-template-columns: minmax(0, 1fr); }
+  .stats { grid-template-columns: repeat(3, 1fr); }
+  .offers { grid-template-columns: minmax(0, 1fr); }
+  .divider { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Minimal Blue Prince · Dashboard</h1>
+    <span class="sub" id="run-label">No run loaded</span>
+    <nav class="tabbar" aria-label="Views"><button type="button" data-tab="eval" class="on">Evaluation</button><button type="button" data-tab="train">Training</button></nav>
+  </header>
+
+  <div id="tab-eval">
+  <section class="card controls" aria-label="Run controls">
+    <div class="field">Agents<div class="agents-pick" id="agent-pick"></div></div>
+    <label class="field">Games<input type="number" id="in-n" min="1" max="100000" value="200"></label>
+    <label class="field">First seed<input type="number" id="in-seed" class="seed"></label>
+    <label class="field">Steps<input type="number" id="in-steps" min="1"></label>
+    <label class="field">Keys<input type="number" id="in-keys" min="0"></label>
+    <label class="field">Gems<input type="number" id="in-gems" min="0"></label>
+    <label class="field" id="ppo-field" hidden>PPO model<select id="in-ppo"></select></label>
+    <button class="btn primary" id="btn-run" type="button">Run</button>
+    <button class="btn" id="btn-stop" type="button" disabled>Stop</button>
+    <div class="status"><span id="status-text">Idle</span><div class="bar"><i id="status-bar"></i></div></div>
+    <div class="divider"></div>
+    <label class="field">Saved runs<select id="sel-run"></select></label>
+    <button class="btn" id="btn-load" type="button">Load</button>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="charts">
+    <div class="card chart">
+      <div class="card-head"><h2>Win rate as games finish</h2><div class="legend" id="lg-curve"></div></div>
+      <div class="card-body" id="ch-curve"></div>
+    </div>
+    <div class="card chart">
+      <div class="card-head"><h2>Highest rank reached</h2><div class="legend" id="lg-rank"></div></div>
+      <div class="card-body" id="ch-rank"></div>
+    </div>
+    <div class="card chart">
+      <div class="card-head"><h2>How games end</h2></div>
+      <div class="card-body" id="ch-outcome"></div>
+    </div>
+  </section>
+
+  <section class="main">
+    <div class="card">
+      <div class="card-head">
+        <h2>Games</h2>
+        <div class="filters">
+          <select id="f-agent" aria-label="Agent filter"></select>
+          <select id="f-out" aria-label="Outcome filter"></select>
+          <input id="f-seed" type="text" placeholder="seed" aria-label="Seed filter">
+        </div>
+      </div>
+      <div class="card-body" style="padding-top:0">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Seed</th><th>Agent</th><th>Result</th><th>Rank</th><th>Steps used</th><th>Keys</th><th>Gems</th><th>Rooms</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+        <div class="table-foot" id="table-foot"></div>
+      </div>
+    </div>
+
+    <div class="card viewer">
+      <div class="card-head"><h2>Game replay</h2><div class="viewer-title" id="v-title"></div></div>
+      <div class="card-body" id="v-body"><div class="placeholder">Pick a game from the list to replay it.</div></div>
+    </div>
+  </section>
+  </div>
+
+  <div id="tab-train" hidden>
+    <section class="card controls" aria-label="Training run">
+      <label class="field">Training run<select id="tr-run"></select></label>
+      <label class="check"><input type="checkbox" id="tr-auto" checked>Refresh every 5 s while training</label>
+      <span class="spacer"></span>
+      <span class="sub" id="tr-status" style="color:var(--ink-2);font-size:12px"></span>
+    </section>
+    <section class="kpis" id="tr-kpis"></section>
+    <section class="charts2">
+      <div class="card chart2">
+        <div class="card-head"><h2>Win rate during training</h2><div class="legend" id="tr-lg-win"></div></div>
+        <div class="card-body" id="tr-ch-win"></div>
+      </div>
+      <div class="card chart2">
+        <div class="card-head"><h2>Average highest rank</h2><div class="legend" id="tr-lg-rank"></div></div>
+        <div class="card-body" id="tr-ch-rank"></div>
+      </div>
+      <div class="card chart2">
+        <div class="card-head"><h2>All runs · validation win rate</h2><div class="legend" id="tr-lg-all"></div></div>
+        <div class="card-body" id="tr-ch-all"></div>
+      </div>
+      <div class="card chart2">
+        <div class="card-head"><h2>How validation games end</h2></div>
+        <div class="card-body" id="tr-ch-out"></div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Settings</h2></div>
+      <div class="card-body"><div class="settings" id="tr-settings"></div>
+        <p class="note" id="tr-note" style="color:var(--ink-3);font-size:12px;margin:12px 0 0"></p></div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var PALETTE = ["#8b95a5", "#e07b28", "#2f9e6a", "#8a5cc2", "#c2456b", "#2f6fd0"];
+  var CAUSES = ["out_of_steps", "out_of_keys", "goal_keys", "no_doors", "truncated"];
+  var OUT_LABEL = { win: "Win", out_of_steps: "Out of steps", out_of_keys: "Out of keys", goal_keys: "Short of goal keys", no_doors: "No doors left", truncated: "Truncated" };
+  var OUT_COLOR = { win: "var(--win)", out_of_steps: "var(--cause-steps)", out_of_keys: "var(--cause-keys)", goal_keys: "var(--cause-goal)", no_doors: "var(--cause-doors)", truncated: "var(--cause-trunc)" };
+  var COLS = "ABCDE";
+
+  var META = null;
+  var S = { runId: null, config: {}, seedStart: null, agents: [], data: {}, rows: [], es: null, running: false, total: 0, sel: null, view: null, timer: null };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function pct(x, d) { return (100 * x).toFixed(d == null ? 1 : d) + "%"; }
+  function cellName(r, c) { return COLS[c - 1] + r; }
+  function agentColor(name) { var i = META ? (META.all_agents || META.agents).indexOf(name) : -1; return PALETTE[(i < 0 ? 5 : i) % PALETTE.length]; }
+  function getJSON(url) { return fetch(url).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.statusText); return j; }); }); }
+
+  /* ------------------------------------------------ data */
+  function resetData(agents) {
+    S.agents = agents.slice();
+    S.data = {};
+    agents.forEach(function (a) {
+      S.data[a] = { rows: [], bySeed: {}, wins: 0, hist: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], causes: {}, curve: [], sum: { max_rank: 0, steps_spent: 0, keys_left: 0, gems_left: 0, return: 0 } };
+    });
+    S.rows = [];
+  }
+  function addRow(agent, row) {
+    var d = S.data[agent];
+    row.agent = agent;
+    d.rows.push(row);
+    d.bySeed[row.seed] = row;
+    S.rows.push(row);
+    if (row.win) d.wins++; else d.causes[row.loss_cause] = (d.causes[row.loss_cause] || 0) + 1;
+    d.hist[row.max_rank]++;
+    d.curve.push(d.wins / d.rows.length);
+    for (var k in d.sum) d.sum[k] += row[k];
+  }
+
+  var pending = false;
+  function schedule() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function () { pending = false; renderAll(); });
+  }
+  function renderAll() { renderKPIs(); renderCharts(); renderTable(); renderStatus(); }
+
+  /* ------------------------------------------------ KPIs */
+  function renderKPIs() {
+    var el = $("kpis");
+    if (!S.agents.length) { el.innerHTML = '<div class="card empty-note">Run agents or load a saved run.</div>'; return; }
+    el.innerHTML = S.agents.map(function (a) {
+      var d = S.data[a], n = d.rows.length;
+      if (!n) return '<div class="card kpi"><div class="name"><i class="sw" style="background:' + agentColor(a) + '"></i>' + esc(a) + '</div><div class="note" style="margin-top:10px">Waiting for games…</div></div>';
+      var p = d.wins / n, ci = 1.96 * Math.sqrt(p * (1 - p) / n);
+      var avg = function (k, f) { return (d.sum[k] / n).toFixed(f); };
+      return '<div class="card kpi"><div class="name"><i class="sw" style="background:' + agentColor(a) + '"></i>' + esc(a) + '</div>' +
+        '<div class="big">' + pct(p) + '<small>± ' + (100 * ci).toFixed(1) + '</small></div>' +
+        '<div class="note">win rate over ' + n.toLocaleString() + ' games (95% interval)</div>' +
+        '<dl><div><dt>Avg highest rank</dt><dd>' + avg("max_rank", 2) + '</dd></div>' +
+        '<div><dt>Reached rank 9</dt><dd>' + pct(d.hist[9] / n) + '</dd></div>' +
+        '<div><dt>Avg steps used</dt><dd>' + avg("steps_spent", 1) + '</dd></div>' +
+        '<div><dt>Keys left</dt><dd>' + avg("keys_left", 2) + '</dd></div>' +
+        '<div><dt>Gems left</dt><dd>' + avg("gems_left", 2) + '</dd></div>' +
+        '<div><dt>Avg return</dt><dd>' + avg("return", 2) + '</dd></div></dl></div>';
+    }).join("");
+  }
+
+  /* ------------------------------------------------ charts */
+  function legendHTML() {
+    return S.agents.map(function (a) { return '<span><i class="sw" style="background:' + agentColor(a) + '"></i>' + esc(a) + '</span>'; }).join("");
+  }
+  function niceMax(v) {
+    var steps = [0.04, 0.08, 0.12, 0.16, 0.2, 0.24, 0.32, 0.4, 0.6, 0.8, 1];   // quarter ticks land on whole percents
+    for (var i = 0; i < steps.length; i++) if (v <= steps[i]) return steps[i];
+    return 1;
+  }
+
+  function curveSVG() {
+    var W = 520, H = 230, L = 42, R = 64, T = 12, B = 30;
+    var maxN = 0, vals = [];
+    S.agents.forEach(function (a) {
+      var c = S.data[a].curve;
+      maxN = Math.max(maxN, c.length);
+      vals = vals.concat(c.slice(Math.min(19, Math.max(0, c.length - 1))));
+    });
+    if (!maxN) return '<div class="placeholder">No games yet.</div>';
+    var ymax = niceMax(Math.max.apply(null, vals.concat([0.02])) * 1.08);
+    var x = function (i) { return L + (maxN === 1 ? 0 : i / (maxN - 1)) * (W - L - R); };
+    var y = function (v) { return T + (1 - Math.min(v, ymax) / ymax) * (H - T - B); };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Running win rate">';
+    for (var k = 0; k <= 4; k++) {
+      var v = ymax * k / 4;
+      s += '<line class="gridline" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/>' +
+           '<text class="axis" x="' + (L - 6) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + Math.round(v * 100) + '%</text>';
+    }
+    s += '<text class="axis" x="' + L + '" y="' + (H - 8) + '">1</text><text class="axis" x="' + (W - R) + '" y="' + (H - 8) + '" text-anchor="end">' + maxN.toLocaleString() + ' games</text>';
+    var labels = [];
+    S.agents.forEach(function (a) {
+      var c = S.data[a].curve;
+      if (!c.length) return;
+      var step = Math.max(1, Math.ceil(c.length / 400)), pts = [];
+      for (var i = 0; i < c.length; i += step) pts.push(x(i).toFixed(1) + "," + y(c[i]).toFixed(1));
+      pts.push(x(c.length - 1).toFixed(1) + "," + y(c[c.length - 1]).toFixed(1));
+      s += '<polyline fill="none" stroke="' + agentColor(a) + '" stroke-width="2" stroke-linejoin="round" points="' + pts.join(" ") + '"/>';
+      labels.push({ y: y(c[c.length - 1]), x: x(c.length - 1), a: a, v: c[c.length - 1] });
+    });
+    labels.sort(function (p, q) { return p.y - q.y; });
+    for (var j = 1; j < labels.length; j++) if (labels[j].y - labels[j - 1].y < 12) labels[j].y = labels[j - 1].y + 12;
+    labels.forEach(function (l) {
+      s += '<circle cx="' + l.x + '" cy="' + l.y + '" r="3" fill="' + agentColor(l.a) + '"/>' +
+           '<text x="' + (W - R + 6) + '" y="' + (l.y + 3.5) + '" font-size="11" font-weight="600" fill="' + agentColor(l.a) + '">' + pct(l.v) + '</text>';
+    });
+    return s + '</svg>';
+  }
+
+  function rankSVG() {
+    var W = 520, H = 230, L = 42, R = 10, T = 12, B = 30;
+    var any = S.agents.some(function (a) { return S.data[a].rows.length; });
+    if (!any) return '<div class="placeholder">No games yet.</div>';
+    var share = {}, mx = 0;
+    S.agents.forEach(function (a) {
+      var d = S.data[a], n = d.rows.length || 1;
+      share[a] = d.hist.map(function (h) { return h / n; });
+      mx = Math.max.apply(null, [mx].concat(share[a].slice(1)));
+    });
+    var ymax = niceMax(mx * 1.05);
+    var gw = (W - L - R) / 9, bw = Math.min(18, (gw - 8) / S.agents.length);
+    var y = function (v) { return T + (1 - v / ymax) * (H - T - B); };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Highest rank reached">';
+    for (var k = 0; k <= 4; k++) {
+      var v = ymax * k / 4;
+      s += '<line class="gridline" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/>' +
+           '<text class="axis" x="' + (L - 6) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + Math.round(v * 100) + '%</text>';
+    }
+    for (var r = 1; r <= 9; r++) {
+      var gx = L + (r - 1) * gw + (gw - bw * S.agents.length) / 2;
+      S.agents.forEach(function (a, i) {
+        var v = share[a][r];
+        s += '<rect x="' + (gx + i * bw).toFixed(1) + '" y="' + y(v).toFixed(1) + '" width="' + (bw - 1.5).toFixed(1) + '" height="' + (y(0) - y(v)).toFixed(1) + '" rx="2" fill="' + agentColor(a) + '"><title>' + esc(a) + ', rank ' + r + ': ' + pct(v) + '</title></rect>';
+      });
+      s += '<text class="axis" x="' + (L + (r - 0.5) * gw) + '" y="' + (H - 12) + '" text-anchor="middle">' + r + '</text>';
+    }
+    return s + '<text class="axis" x="' + (W - R) + '" y="' + (H - 1) + '" text-anchor="end">rank</text></svg>';
+  }
+
+  function outcomeSVG() {
+    var active = S.agents.filter(function (a) { return S.data[a].rows.length; });
+    if (!active.length) return '<div class="placeholder">No games yet.</div>';
+    return outcomeBars(active.map(function (a) {
+      var d = S.data[a], n = d.rows.length, fr = { win: d.wins / n };
+      CAUSES.forEach(function (c) { fr[c] = (d.causes[c] || 0) / n; });
+      return { label: a, n: n, fr: fr };
+    }));
+  }
+
+  // items: [{label, n, fr: {win, out_of_steps, ...}}] with fractions of games
+  function outcomeBars(items) {
+    var W = 520, L = 96, R = 10, bh = 26, gap = 14, T = 6;
+    var keys = ["win"].concat(CAUSES).filter(function (k) {
+      return k !== "truncated" || items.some(function (it) { return it.fr.truncated; });
+    });
+    var H = T + items.length * (bh + gap) + 46;
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Outcomes">';
+    items.forEach(function (it, i) {
+      var x = L, yy = T + i * (bh + gap);
+      s += '<text x="' + (L - 8) + '" y="' + (yy + bh / 2 + 4) + '" text-anchor="end" font-size="12" font-weight="600" fill="var(--ink)">' + esc(it.label) + '</text>';
+      keys.forEach(function (k) {
+        var f = it.fr[k] || 0, w = (W - L - R) * f;
+        if (!f) return;
+        s += '<rect x="' + x.toFixed(1) + '" y="' + yy + '" width="' + Math.max(w - 1, 0.5).toFixed(1) + '" height="' + bh + '" fill="' + OUT_COLOR[k] + '"><title>' + OUT_LABEL[k] + ': ' + Math.round(f * it.n) + ' of ' + it.n + ' (' + pct(f) + ')</title></rect>';
+        if (w > 34) s += '<text x="' + (x + w / 2) + '" y="' + (yy + bh / 2 + 4) + '" text-anchor="middle" font-size="10.5" font-weight="600" fill="#fff">' + Math.round(100 * f) + '%</text>';
+        x += w;
+      });
+    });
+    var active = items;
+    var ly = T + active.length * (bh + gap) + 8, lx = L;
+    keys.forEach(function (k, i) {
+      if (i === 3) { ly += 18; lx = L; }
+      s += '<rect x="' + lx + '" y="' + ly + '" width="10" height="10" rx="2" fill="' + OUT_COLOR[k] + '"/><text x="' + (lx + 14) + '" y="' + (ly + 9) + '" font-size="11" fill="var(--ink-2)">' + OUT_LABEL[k] + '</text>';
+      lx += 140;
+    });
+    return s + '</svg>';
+  }
+
+  function renderCharts() {
+    $("lg-curve").innerHTML = legendHTML();
+    $("lg-rank").innerHTML = legendHTML();
+    $("ch-curve").innerHTML = curveSVG();
+    $("ch-rank").innerHTML = rankSVG();
+    $("ch-outcome").innerHTML = outcomeSVG();
+  }
+
+  /* ------------------------------------------------ table */
+  function fillFilters() {
+    var fa = $("f-agent"), fo = $("f-out"), keepA = fa.value, keepO = fo.value;
+    fa.innerHTML = '<option value="">All agents</option>' + S.agents.map(function (a) { return '<option>' + esc(a) + '</option>'; }).join("");
+    fo.innerHTML = '<option value="">All results</option><option value="win">Wins</option><option value="loss">Losses</option>' +
+      CAUSES.map(function (c) { return '<option value="' + c + '">' + OUT_LABEL[c] + '</option>'; }).join("");
+    if (S.agents.indexOf(keepA) >= 0) fa.value = keepA;
+    fo.value = keepO || "";
+  }
+  function filteredRows() {
+    var fa = $("f-agent").value, fo = $("f-out").value, fs = $("f-seed").value.trim();
+    return S.rows.filter(function (r) {
+      if (fa && r.agent !== fa) return false;
+      if (fo === "win" && !r.win) return false;
+      if (fo === "loss" && r.win) return false;
+      if (fo && fo !== "win" && fo !== "loss" && r.loss_cause !== fo) return false;
+      if (fs && String(r.seed).indexOf(fs) < 0) return false;
+      return true;
+    });
+  }
+  function renderTable() {
+    var rows = filteredRows(), LIMIT = 300;
+    var shown = rows.slice(-LIMIT).reverse();
+    $("tbody").innerHTML = shown.map(function (r) {
+      var sel = S.sel && S.sel.agent === r.agent && S.sel.seed === r.seed ? ' class="sel"' : "";
+      var res = r.win ? '<span class="chip win">Win</span>' : '<span class="chip loss">' + esc(OUT_LABEL[r.loss_cause] || r.loss_cause) + '</span>';
+      return '<tr data-a="' + esc(r.agent) + '" data-s="' + r.seed + '"' + sel + '><td>' + r.seed + '</td><td><i class="sw" style="background:' + agentColor(r.agent) + ';margin-right:6px"></i>' + esc(r.agent) +
+        '</td><td>' + res + '</td><td>' + r.max_rank + '</td><td>' + r.steps_spent + '</td><td>' + r.keys_left + '</td><td>' + r.gems_left + '</td><td>' + r.rooms_drafted + '</td></tr>';
+    }).join("");
+    $("table-foot").textContent = rows.length ? (rows.length > LIMIT ? "Showing the latest " + LIMIT + " of " + rows.length.toLocaleString() + " games. Filter to narrow down." : rows.length.toLocaleString() + " games.") : (S.rows.length ? "No games match the filters." : "");
+  }
+
+  /* ------------------------------------------------ run / load */
+  function renderStatus() {
+    var done = S.rows.length;
+    var total = S.total || done;
+    $("status-bar").style.width = total ? (100 * done / total) + "%" : "0";
+    if (S.running) $("status-text").textContent = "Running… " + done.toLocaleString() + " / " + total.toLocaleString() + " games";
+  }
+  function setRunning(on) {
+    S.running = on;
+    $("btn-run").disabled = on;
+    $("btn-stop").disabled = !on;
+    $("btn-load").disabled = on;
+  }
+  function runLabel() {
+    var c = S.config, d = META.defaults;
+    var cfg = (c.steps != null ? c.steps : d.steps) + " steps · " + (c.keys != null ? c.keys : d.keys) + " keys · " + (c.gems != null ? c.gems : d.gems) + " gems";
+    var seeds = S.seedStart != null ? " · seeds from " + S.seedStart.toLocaleString() : "";
+    $("run-label").textContent = (S.runId || "live run") + " · " + cfg + seeds + (S.ppoModel ? " · ppo model " + S.ppoModel : "");
+  }
+
+  function startRun() {
+    var agents = Array.prototype.filter.call(document.querySelectorAll("#agent-pick input"), function (i) { return i.checked; }).map(function (i) { return i.value; });
+    if (!agents.length) { $("status-text").textContent = "Pick at least one agent."; return; }
+    var q = new URLSearchParams({ agents: agents.join(","), n: $("in-n").value || "200", seed_start: $("in-seed").value || META.test_seed_start });
+    ["steps", "keys", "gems"].forEach(function (k) { var v = $("in-" + k).value; if (v !== "") q.set(k, v); });
+    if (agents.indexOf("ppo") >= 0 && $("in-ppo").value) q.set("ppo_model", $("in-ppo").value);
+    $("btn-run").disabled = true;
+    $("status-text").textContent = "Starting…";
+    getJSON("/api/stream?" + q.toString() + "&dry=1").then(function () { openStream(agents, q); })
+      .catch(function (e) { $("btn-run").disabled = false; $("status-text").textContent = "Could not start: " + e.message; });
+  }
+  function openStream(agents, q) {
+    S.total = (+$("in-n").value || 200) * agents.length;
+    resetData(agents);
+    S.config = {}; S.runId = null; S.seedStart = +q.get("seed_start");
+    fillFilters();
+    setRunning(true);
+    renderAll();
+    var es = new EventSource("/api/stream?" + q.toString());
+    S.es = es;
+    es.addEventListener("start", function (e) {
+      var m = JSON.parse(e.data);
+      S.runId = m.run; S.config = m.config; S.seedStart = m.seed_start; S.ppoModel = m.ppo_model || null;
+      runLabel();
+    });
+    es.addEventListener("game", function (e) {
+      var row = JSON.parse(e.data);
+      addRow(row.agent, row);
+      if (!S.sel) openGame(row.agent, row.seed);
+      schedule();
+    });
+    es.addEventListener("done", function () { finishRun("Finished"); });
+    es.onerror = function () { if (S.running) finishRun("Stopped (connection closed)"); };
+  }
+  function finishRun(msg) {
+    if (S.es) { S.es.close(); S.es = null; }
+    setRunning(false);
+    renderAll();
+    $("status-text").textContent = msg + " · " + S.rows.length.toLocaleString() + " games · saved to results/" + (S.runId || "runs");
+    setTimeout(function () { refreshRuns(S.runId); }, 600);
+  }
+
+  function refreshRuns(selectId) {
+    return getJSON("/api/runs").then(function (runs) {
+      var sel = $("sel-run");
+      sel.innerHTML = runs.length ? runs.map(function (r) {
+        var cfg = Object.keys(r.config).map(function (k) { return k + " " + r.config[k]; }).join(", ");
+        return '<option value="' + esc(r.id) + '">' + esc(r.id) + " · " + esc(r.agents.join(", ")) + " · " + r.games + " games" + (cfg ? " · " + esc(cfg) : "") + (r.partial ? " · partial" : "") + '</option>';
+      }).join("") : '<option value="">No saved runs</option>';
+      if (selectId) sel.value = selectId;
+      return runs;
+    });
+  }
+  function loadRun(id) {
+    if (!id) return;
+    $("status-text").textContent = "Loading " + id + "…";
+    getJSON("/api/load?run=" + encodeURIComponent(id)).then(function (run) {
+      var agents = Object.keys(run.agents);
+      resetData(agents);
+      S.runId = run.id; S.config = run.config || {}; S.seedStart = run.seed_start; S.total = 0; S.ppoModel = run.ppo_model || null;
+      var maxLen = Math.max.apply(null, agents.map(function (a) { return run.agents[a].length; }).concat([0]));
+      for (var i = 0; i < maxLen; i++) agents.forEach(function (a) { var r = run.agents[a][i]; if (r) addRow(a, r); });
+      fillFilters();
+      runLabel();
+      $("status-text").textContent = "Loaded " + id + " · " + S.rows.length.toLocaleString() + " games";
+      $("status-bar").style.width = "0";
+      S.sel = null;
+      renderAll();
+      var first = S.rows.find(function (r) { return r.win; }) || S.rows[0];
+      if (first) openGame(first.agent, first.seed);
+    }).catch(function (e) { $("status-text").textContent = "Could not load: " + e.message; });
+  }
+
+  /* ------------------------------------------------ replay viewer */
+  function openGame(agent, seed) {
+    var row = S.data[agent] && S.data[agent].bySeed[seed];
+    if (!row) return;
+    stopPlay();
+    S.sel = { agent: agent, seed: seed };
+    var q = new URLSearchParams({ seed: seed, actions: row.actions.join(",") });
+    ["steps", "keys", "gems"].forEach(function (k) { if (S.config[k] != null) q.set(k, S.config[k]); });
+    renderTable();
+    getJSON("/api/replay?" + q.toString()).then(function (frames) {
+      if (!S.sel || S.sel.agent !== agent || S.sel.seed !== seed) return;
+      S.view = { agent: agent, seed: seed, row: row, frames: frames, idx: frames.length - 1 };
+      renderViewer(true);
+    }).catch(function (e) { $("v-body").innerHTML = '<div class="placeholder">Could not replay: ' + esc(e.message) + '</div>'; });
+  }
+
+  function renderViewer(full) {
+    var v = S.view;
+    if (!v) return;
+    var others = S.agents.filter(function (a) { return S.data[a].bySeed[v.seed]; });
+    $("v-title").innerHTML = '<b>seed ' + v.seed + '</b>' +
+      (others.length > 1 ? '<span class="tabs">' + others.map(function (a) {
+        var r = S.data[a].bySeed[v.seed];
+        return '<button type="button" data-agent="' + esc(a) + '" class="' + (a === v.agent ? "on" : "") + '"><i class="sw" style="background:' + agentColor(a) + '"></i>' + esc(a) + (r.win ? " ✓" : "") + '</button>';
+      }).join("") + '</span>' : '<span><i class="sw" style="background:' + agentColor(v.agent) + '"></i> ' + esc(v.agent) + '</span>') +
+      (v.row.win ? '<span class="chip win">Win</span>' : '<span class="chip loss">' + esc(OUT_LABEL[v.row.loss_cause] || v.row.loss_cause) + '</span>');
+    if (full || !$("v-board")) {
+      $("v-body").innerHTML =
+        '<div><div id="v-board"></div><div class="board-legend">' +
+          '<span><i style="background:var(--door-open)"></i>open door</span><span><i style="background:var(--door-lock)"></i>locked</span>' +
+          '<span><i style="background:var(--bridge)"></i>connected</span><span><i style="background:var(--door-dead)"></i>blocked</span>' +
+          '<span><i style="background:var(--room-key)"></i>gives keys</span><span><i style="background:var(--room-gem)"></i>gems</span>' +
+          '<span><i style="background:var(--room-step)"></i>steps</span><span><i style="background:var(--room-red)"></i>costs steps</span></div></div>' +
+        '<div class="side">' +
+          '<div class="player-ctl">' +
+            '<button class="btn icon" type="button" data-go="first" aria-label="First step">⏮</button>' +
+            '<button class="btn icon" type="button" data-go="prev" aria-label="Previous step">◀</button>' +
+            '<button class="btn icon" type="button" id="v-play" aria-label="Play">▶ Play</button>' +
+            '<button class="btn icon" type="button" data-go="next" aria-label="Next step">▶</button>' +
+            '<button class="btn icon" type="button" data-go="last" aria-label="Last step">⏭</button>' +
+            '<input type="range" id="v-range" min="0" value="0" aria-label="Step">' +
+            '<span class="count" id="v-count"></span></div>' +
+          '<div class="event" id="v-event"></div>' +
+          '<div class="stats" id="v-stats"></div>' +
+          '<div id="v-offers"></div>' +
+          '<div class="timeline"><div class="section-label">Resources over the game</div><div id="v-timeline"></div></div>' +
+          '<div><div class="section-label">Moves</div><div class="log"><ol id="v-log"></ol></div></div>' +
+        '</div>';
+      $("v-range").max = v.frames.length - 1;
+      $("v-log").innerHTML = v.frames.map(function (f, i) { return '<li data-i="' + i + '"><span>' + i + '</span>' + esc(f.event) + '</li>'; }).join("");
+    }
+    renderFrame();
+  }
+
+  function renderFrame() {
+    var v = S.view, f = v.frames[v.idx], next = v.frames[v.idx + 1];
+    $("v-board").innerHTML = boardSVG(f);
+    $("v-range").value = v.idx;
+    $("v-count").textContent = v.idx + " / " + (v.frames.length - 1);
+    var tag = v.idx === 0 ? "Start" : (f.action >= 180 ? "Draft" : "Door");
+    $("v-event").innerHTML = '<div class="tag">' + tag + (f.action != null ? " · action " + f.action : "") + '</div>' + esc(f.event);
+    $("v-stats").innerHTML = [["Steps", f.steps, "c-steps"], ["Keys", f.keys, "c-keys"], ["Gems", f.gems, "c-gems"], ["Rank", f.max_rank, ""], ["Return", f.reward.toFixed(2), ""]]
+      .map(function (x) { return '<div><span>' + x[0] + '</span><b class="' + x[2] + '">' + x[1] + '</b></div>'; }).join("");
+    if (f.draft) {
+      var chosen = next && next.action >= 180 ? next.action - 180 : -1;
+      $("v-offers").innerHTML = '<div class="section-label">Blueprints offered at ' + cellName(f.draft.target[0], f.draft.target[1]) + '</div><div class="offers">' +
+        f.draft.offers.map(function (o, i) {
+          var g = [["steps", o.steps], ["keys", o.keys], ["gems", o.gems]].filter(function (x) { return x[1]; })
+            .map(function (x) { return '<span class="' + (x[1] < 0 ? "c-bad" : "c-" + x[0]) + '">' + (x[1] > 0 ? "+" : "") + x[1] + " " + x[0] + '</span>'; }).join(" ");
+          return '<div class="offer' + (i === chosen ? " chosen" : "") + (o.affordable ? "" : " cant") + '">' + (i === chosen ? '<span class="o-flag">chosen</span>' : "") +
+            '<div class="o-name">' + esc(o.name) + '</div><div class="o-meta">' + shapeName(o.shape) + " · doors " + o.doors.join("") + " · " + (o.cost ? o.cost + " gem" + (o.cost > 1 ? "s" : "") : "free") +
+            (o.affordable ? "" : " · can't afford") + '</div><div class="o-gain">' + (g || '<span style="color:var(--ink-3)">no resources</span>') + '</div></div>';
+        }).join("") + '</div>';
+    } else {
+      $("v-offers").innerHTML = "";
+    }
+    $("v-timeline").innerHTML = timelineSVG(v.frames, v.idx);
+    var items = $("v-log").children;
+    for (var i = 0; i < items.length; i++) items[i].className = i === v.idx ? "cur" : "";
+    var cur = items[v.idx];
+    if (cur) {
+      var box = cur.parentNode.parentNode;
+      if (cur.offsetTop < box.scrollTop || cur.offsetTop > box.scrollTop + box.clientHeight - 30) box.scrollTop = cur.offsetTop - 60;
+    }
+  }
+
+  function shapeName(s) { return { D: "dead end", S: "straight", L: "L-shape", T: "T-shape", X: "4-way" }[s] || s; }
+
+  function go(to) {
+    var v = S.view;
+    if (!v) return;
+    var n = v.frames.length - 1;
+    v.idx = to === "first" ? 0 : to === "last" ? n : to === "prev" ? Math.max(0, v.idx - 1) : to === "next" ? Math.min(n, v.idx + 1) : Math.max(0, Math.min(n, to));
+    renderFrame();
+  }
+  function stopPlay() {
+    if (S.timer) { clearInterval(S.timer); S.timer = null; }
+    var b = $("v-play"); if (b) b.textContent = "▶ Play";
+  }
+  function togglePlay() {
+    if (S.timer) { stopPlay(); return; }
+    var v = S.view;
+    if (!v) return;
+    if (v.idx >= v.frames.length - 1) v.idx = 0;
+    $("v-play").textContent = "❚❚ Pause";
+    renderFrame();
+    S.timer = setInterval(function () {
+      if (v.idx >= v.frames.length - 1) { stopPlay(); return; }
+      go("next");
+    }, 650);
+  }
+
+  /* ------------------------------------------------ board drawing */
+  var CS = 62, OX = 24, OY = 8, IN = 5;
+  function cellXY(r, c) { return [OX + (c - 1) * CS, OY + (9 - r) * CS]; }
+  function roomFill(rm) {
+    if (rm.kind === "start") return "var(--start)";
+    if (rm.kind === "goal") return "var(--goal)";
+    if (rm.steps < 0 || rm.red) return "var(--room-red)";
+    if (rm.keys > 0) return "var(--room-key)";
+    if (rm.gems > 0) return "var(--room-gem)";
+    if (rm.steps > 0) return "var(--room-step)";
+    return "var(--room)";
+  }
+  function wrapName(name) {
+    var words = name.split(" "), lines = [""];
+    words.forEach(function (w) {
+      var cur = lines[lines.length - 1];
+      if (!cur) lines[lines.length - 1] = w;
+      else if ((cur + " " + w).length <= 11) lines[lines.length - 1] = cur + " " + w;
+      else lines.push(w);
+    });
+    if (lines.length > 2) lines = [lines[0], lines.slice(1).join(" ")];
+    return lines.map(function (l) { return l.length > 12 ? l.slice(0, 11) + "…" : l; });
+  }
+  function doorRect(x, y, d, len, thick) {
+    var m = CS / 2;
+    if (d === "N") return [x + m - len / 2, y + IN - thick / 2, len, thick];
+    if (d === "S") return [x + m - len / 2, y + CS - IN - thick / 2, len, thick];
+    if (d === "E") return [x + CS - IN - thick / 2, y + m - len / 2, thick, len];
+    return [x + IN - thick / 2, y + m - len / 2, thick, len];
+  }
+  function rectTag(b, attrs) { return '<rect x="' + b[0] + '" y="' + b[1] + '" width="' + b[2] + '" height="' + b[3] + '" ' + attrs + '/>'; }
+
+  function boardSVG(f) {
+    var W = OX + 5 * CS + 40, H = OY + 9 * CS + 22;
+    var s = '<svg class="board" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Board">' +
+      '<defs><marker id="arr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker></defs>';
+    var r, c, xy;
+    for (r = 1; r <= 9; r++) {
+      xy = cellXY(r, 1);
+      s += '<text class="lbl" x="' + (OX - 9) + '" y="' + (xy[1] + CS / 2 + 3) + '" text-anchor="middle">' + r + '</text>';
+      var lp = META.lock_prob[r];
+      s += '<text class="lockp" x="' + (OX + 5 * CS + 6) + '" y="' + (xy[1] + CS / 2 + 3) + '"><title>Chance a new door into rank ' + r + ' is locked</title>' + Math.round(lp * 100) + '%</text>';
+      for (c = 1; c <= 5; c++) {
+        xy = cellXY(r, c);
+        s += '<rect class="cell-empty" x="' + (xy[0] + IN) + '" y="' + (xy[1] + IN) + '" width="' + (CS - 2 * IN) + '" height="' + (CS - 2 * IN) + '" rx="5"/>';
+      }
+    }
+    for (c = 1; c <= 5; c++) {
+      xy = cellXY(1, c);
+      s += '<text class="lbl" x="' + (xy[0] + CS / 2) + '" y="' + (OY + 9 * CS + 14) + '" text-anchor="middle">' + COLS[c - 1] + '</text>';
+    }
+    s += '<text class="lockp" x="' + (OX + 5 * CS + 6) + '" y="' + (OY + 9 * CS + 14) + '">lock</text>';
+
+    if (f.draft) {
+      xy = cellXY(f.draft.target[0], f.draft.target[1]);
+      s += '<rect x="' + (xy[0] + IN) + '" y="' + (xy[1] + IN) + '" width="' + (CS - 2 * IN) + '" height="' + (CS - 2 * IN) + '" rx="5" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="4 3"/>' +
+           '<text x="' + (xy[0] + CS / 2) + '" y="' + (xy[1] + CS / 2 + 6) + '" text-anchor="middle" font-size="18" font-weight="700" fill="var(--accent)">?</text>';
+    }
+
+    var bridges = "", doors = "";
+    f.rooms.forEach(function (rm) {
+      xy = cellXY(rm.r, rm.c);
+      var x = xy[0], y = xy[1], fill = roomFill(rm);
+      s += '<rect class="room" x="' + (x + IN) + '" y="' + (y + IN) + '" width="' + (CS - 2 * IN) + '" height="' + (CS - 2 * IN) + '" rx="5" fill="' + fill + '"><title>' + esc(rm.name) + " (" + cellName(rm.r, rm.c) + ')</title></rect>';
+      var lines = wrapName(rm.name);
+      lines.forEach(function (l, i) { s += '<text class="rname" x="' + (x + 10) + '" y="' + (y + 19 + i * 10) + '">' + esc(l) + '</text>'; });
+      var gains = [];
+      if (rm.steps) gains.push('<tspan fill="' + (rm.steps < 0 ? "var(--bad)" : "var(--c-steps)") + '">' + (rm.steps > 0 ? "+" : "") + rm.steps + 'S</tspan>');
+      if (rm.keys) gains.push('<tspan fill="var(--c-keys)">+' + rm.keys + 'K</tspan>');
+      if (rm.gems) gains.push('<tspan fill="var(--c-gems)">+' + rm.gems + 'G</tspan>');
+      if (gains.length) s += '<text class="rgain" x="' + (x + 10) + '" y="' + (y + CS - 12) + '">' + gains.join(" ") + '</text>';
+      Object.keys(rm.doors).forEach(function (d) {
+        var st = rm.doors[d];
+        if (st === "joined") {
+          doors += rectTag(doorRect(x, y, d, 14, 4), 'fill="' + fill + '"');
+          if (d === "N") bridges += rectTag([x + CS / 2 - 5, y - IN - 1, 10, 2 * IN + 2], 'fill="var(--bridge)" rx="1"');
+          if (d === "E") bridges += rectTag([x + CS - IN - 1, y + CS / 2 - 5, 2 * IN + 2, 10], 'fill="var(--bridge)" rx="1"');
+        } else if (st === "open") {
+          doors += rectTag(doorRect(x, y, d, 18, 6), 'fill="var(--door-open)" stroke="var(--ink-2)" stroke-width="1" rx="1.5"');
+        } else if (st === "locked") {
+          doors += rectTag(doorRect(x, y, d, 18, 6), 'fill="var(--door-lock)" stroke="var(--ink-2)" stroke-width="1" rx="1.5"');
+        } else if (st === "dead" || st === "blocked") {
+          doors += rectTag(doorRect(x, y, d, 14, 5), 'fill="var(--door-dead)" rx="1.5"');
+        } else if (st === "sealed") {
+          doors += rectTag(doorRect(x, y, d, 18, 6), 'fill="none" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="2 2" rx="1.5"');
+        }
+      });
+    });
+    s += doors + bridges;
+
+    if (f.path && f.path.length > 1) {
+      var pts = f.path.map(function (p) { var q = cellXY(p[0], p[1]); return (q[0] + CS / 2) + "," + (q[1] + CS / 2); }).join(" ");
+      s += '<polyline points="' + pts + '" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 4" opacity=".85" marker-end="url(#arr)"/>';
+    }
+    xy = cellXY(f.player[0], f.player[1]);
+    s += '<circle cx="' + (xy[0] + CS - 15) + '" cy="' + (xy[1] + CS - 15) + '" r="6.5" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"><title>Player</title></circle>';
+    return s + '</svg>';
+  }
+
+  function timelineSVG(frames, idx) {
+    var W = 420, rowH = 30, L = 42, R = 30, H = rowH * 3 + 4;
+    var series = [["steps", "Steps", "var(--c-steps)"], ["keys", "Keys", "var(--c-keys)"], ["gems", "Gems", "var(--c-gems)"]];
+    var n = frames.length - 1 || 1;
+    var x = function (i) { return L + i / n * (W - L - R); };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" id="tl-svg" role="img" aria-label="Resources over the game">';
+    series.forEach(function (sr, k) {
+      var top = k * rowH + 4, mx = Math.max.apply(null, frames.map(function (f) { return f[sr[0]]; }).concat([1]));
+      var y = function (v) { return top + (1 - v / mx) * (rowH - 10) + 2; };
+      s += '<text class="axis" x="0" y="' + (top + rowH / 2) + '">' + sr[1] + '</text>' +
+           '<line class="gridline" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(0) + '" y2="' + y(0) + '"/>' +
+           '<polyline fill="none" stroke="' + sr[2] + '" stroke-width="1.8" points="' + frames.map(function (f, i) { return x(i).toFixed(1) + "," + y(f[sr[0]]).toFixed(1); }).join(" ") + '"/>' +
+           '<circle cx="' + x(idx) + '" cy="' + y(frames[idx][sr[0]]) + '" r="3" fill="' + sr[2] + '"/>' +
+           '<text x="' + (W - R + 6) + '" y="' + (top + rowH / 2) + '" font-size="11" font-weight="600" fill="' + sr[2] + '">' + frames[idx][sr[0]] + '</text>';
+    });
+    return s + '<line x1="' + x(idx) + '" x2="' + x(idx) + '" y1="0" y2="' + H + '" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="2 2"/></svg>';
+  }
+
+  /* ------------------------------------------------ events */
+  $("btn-run").addEventListener("click", startRun);
+  $("btn-stop").addEventListener("click", function () { finishRun("Stopped"); });
+  $("btn-load").addEventListener("click", function () { loadRun($("sel-run").value); });
+  ["f-agent", "f-out"].forEach(function (id) { $(id).addEventListener("change", renderTable); });
+  $("f-seed").addEventListener("input", renderTable);
+  $("tbody").addEventListener("click", function (e) {
+    var tr = e.target.closest("tr");
+    if (tr) openGame(tr.getAttribute("data-a"), +tr.getAttribute("data-s"));
+  });
+  $("v-title").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-agent]");
+    if (b && S.view) openGame(b.getAttribute("data-agent"), S.view.seed);
+  });
+  $("v-body").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-go]");
+    if (b) { stopPlay(); go(b.getAttribute("data-go")); return; }
+    if (e.target.closest("#v-play")) { togglePlay(); return; }
+    var li = e.target.closest("li[data-i]");
+    if (li) { stopPlay(); go(+li.getAttribute("data-i")); return; }
+    var tl = e.target.closest("#tl-svg");
+    if (tl && S.view) {
+      var rect = tl.getBoundingClientRect(), W = 420, L = 42, R = 30;
+      var xv = (e.clientX - rect.left) / rect.width * W;
+      stopPlay();
+      go(Math.round((xv - L) / (W - L - R) * (S.view.frames.length - 1)));
+    }
+  });
+  $("v-body").addEventListener("input", function (e) {
+    if (e.target.id === "v-range") { stopPlay(); go(+e.target.value); }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!S.view || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && document.activeElement.id !== "v-range") return;
+    if (e.key === "ArrowLeft") { stopPlay(); go("prev"); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { stopPlay(); go("next"); e.preventDefault(); }
+    else if (e.key === " " && document.activeElement.tagName !== "BUTTON") { togglePlay(); e.preventDefault(); }
+  });
+
+  /* ------------------------------------------------ agents and models */
+  function setupAgents(meta) {
+    var prev = {};
+    Array.prototype.forEach.call(document.querySelectorAll("#agent-pick input"), function (i) { prev[i.value] = i.checked; });
+    META = meta;
+    $("agent-pick").innerHTML = meta.agents.map(function (a) {
+      var on = a in prev ? prev[a] : true;
+      return '<label><input type="checkbox" value="' + esc(a) + '"' + (on ? " checked" : "") + '><i class="sw" style="background:' + agentColor(a) + '"></i>' + esc(a) + '</label>';
+    }).join("");
+    var keep = $("in-ppo").value;
+    $("in-ppo").innerHTML = meta.ppo_models.map(function (m, i) { return '<option value="' + esc(m) + '">' + esc(m) + (i === 0 ? " (newest)" : "") + '</option>'; }).join("");
+    if (meta.ppo_models.indexOf(keep) >= 0) $("in-ppo").value = keep;
+    $("ppo-field").hidden = !meta.ppo_models.length;
+  }
+  function refreshMeta() { return getJSON("/api/meta").then(function (m) { if (!S.running) setupAgents(m); }); }
+
+  /* ------------------------------------------------ training view */
+  var RUN_COLORS = ["#2f9e6a", "#2f6fd0", "#8a5cc2", "#c2456b", "#d39a12", "#18a3a3"];
+  var T = { runs: [], name: null, data: null, all: {}, timer: null };
+
+  function fmtSteps(n) { return n >= 1e6 ? (n / 1e6).toFixed(n % 1e6 ? 1 : 0) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n); }
+  function fmtTime(sec) { var m = Math.floor(sec / 60), h = Math.floor(m / 60); return h ? h + "h " + (m % 60) + "m" : m ? m + "m " + Math.round(sec % 60) + "s" : Math.round(sec) + "s"; }
+
+  // o: {series: [{label, color, pts: [[x, y]], dash}], hlines: [{label, color, y}], ymin, ymax, fmt}
+  function lineChart(o) {
+    var W = 520, H = 240, L = 46, R = 92, Tp = 12, B = 30;
+    var xmax = 1;
+    o.series.forEach(function (s) { s.pts.forEach(function (p) { xmax = Math.max(xmax, p[0]); }); });
+    var ymin = o.ymin || 0, ymax = o.ymax;
+    var x = function (v) { return L + v / xmax * (W - L - R); };
+    var y = function (v) { return Tp + (1 - (Math.max(ymin, Math.min(v, ymax)) - ymin) / (ymax - ymin)) * (H - Tp - B); };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.aria || "chart") + '">';
+    for (var k = 0; k <= 4; k++) {
+      var v = ymin + (ymax - ymin) * k / 4;
+      s += '<line class="gridline" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/>' +
+           '<text class="axis" x="' + (L - 6) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + o.fmt(v) + '</text>';
+    }
+    s += '<text class="axis" x="' + L + '" y="' + (H - 8) + '">0</text><text class="axis" x="' + (W - R) + '" y="' + (H - 8) + '" text-anchor="end">' + fmtSteps(xmax) + ' steps</text>';
+    var labels = [];
+    (o.hlines || []).forEach(function (h) {
+      s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(h.y) + '" y2="' + y(h.y) + '" stroke="' + h.color + '" stroke-width="1.5" stroke-dasharray="5 4"/>';
+      labels.push({ y: y(h.y), text: h.label + " " + o.fmt(h.y), color: h.color });
+    });
+    o.series.forEach(function (sr) {
+      if (!sr.pts.length) return;
+      var pts = sr.pts.map(function (p) { return x(p[0]).toFixed(1) + "," + y(p[1]).toFixed(1); }).join(" ");
+      s += '<polyline fill="none" stroke="' + sr.color + '" stroke-width="2" stroke-linejoin="round"' + (sr.dash ? ' stroke-dasharray="3 3" opacity=".75"' : "") + ' points="' + pts + '"/>';
+      var last = sr.pts[sr.pts.length - 1];
+      if (sr.pts.length <= 40) sr.pts.forEach(function (p) { s += '<circle cx="' + x(p[0]) + '" cy="' + y(p[1]) + '" r="2.2" fill="' + sr.color + '"/>'; });
+      labels.push({ y: y(last[1]), text: (o.valueOnly ? "" : sr.label + " ") + o.fmt(last[1]), color: sr.color });
+    });
+    labels.sort(function (p, q) { return p.y - q.y; });
+    for (var j = 1; j < labels.length; j++) if (labels[j].y - labels[j - 1].y < 12) labels[j].y = labels[j - 1].y + 12;
+    labels.forEach(function (l) { s += '<text x="' + (W - R + 6) + '" y="' + (l.y + 3.5) + '" font-size="10.5" font-weight="600" fill="' + l.color + '">' + esc(l.text) + '</text>'; });
+    return s + '</svg>';
+  }
+  function legend(items) { return items.map(function (it) { return '<span><i class="sw" style="background:' + it[1] + (it[2] ? ";opacity:.6" : "") + '"></i>' + esc(it[0]) + '</span>'; }).join(""); }
+
+  function refreshTraining() {
+    return getJSON("/api/training").then(function (runs) {
+      T.runs = runs;
+      var sel = $("tr-run"), keep = T.name || sel.value;
+      sel.innerHTML = runs.length ? runs.map(function (r) {
+        return '<option value="' + esc(r.name) + '">' + esc(r.name) + " · " + esc(r.status || "?") + (r.best != null ? " · best " + pct(r.best) : "") + '</option>';
+      }).join("") : '<option value="">No training runs</option>';
+      if (runs.some(function (r) { return r.name === keep; })) sel.value = keep;
+      T.name = sel.value || null;
+      return Promise.all(runs.map(function (r) {
+        return getJSON("/api/training_run?name=" + encodeURIComponent(r.name)).then(function (d) { T.all[r.name] = d; });
+      }));
+    }).then(function () {
+      T.data = T.name ? T.all[T.name] : null;
+      renderTraining();
+    }).catch(function (e) { $("tr-status").textContent = "Could not load training runs: " + e.message; });
+  }
+
+  function renderTraining() {
+    var d = T.data;
+    if (!d) {
+      $("tr-kpis").innerHTML = '<div class="card empty-note">No training runs yet. Start one with <code>python -m blueprince.train --name my-run</code>.</div>';
+      ["tr-ch-win", "tr-ch-rank", "tr-ch-all", "tr-ch-out", "tr-settings"].forEach(function (id) { $(id).innerHTML = ""; });
+      return;
+    }
+    var cfg = d.config, prog = d.progress, args = cfg.args || {}, base = cfg.baselines || {};
+    var last = prog[prog.length - 1], best = null;
+    prog.forEach(function (p) { if (!best || p.val.win_rate > best.val.win_rate) best = p; });
+    var cur = args.cur_keys != null || args.cur_gems != null;
+    var ppoC = agentColor("ppo"), ruleC = agentColor("rule"), randC = agentColor("random");
+    $("tr-status").textContent = (cfg.status === "running" ? "Training… " : "Status: " + cfg.status + " · ") + "started " + (cfg.started || "?") + (cfg.finished ? " · finished " + cfg.finished : "");
+
+    var done = last ? last.timesteps : 0, total = args.timesteps || 1;
+    var ruleW = base.rule ? base.rule.win_rate : null;
+    $("tr-kpis").innerHTML =
+      '<div class="card kpi"><div class="name"><i class="sw" style="background:' + ppoC + '"></i>Best validation win rate</div>' +
+        '<div class="big">' + (best ? pct(best.val.win_rate) : "–") + '</div>' +
+        '<div class="note">' + (best ? "at " + fmtSteps(best.timesteps) + " steps · saved as best_model.zip" : "no evaluation yet") + '</div>' +
+        '<dl><div><dt>Rule baseline</dt><dd>' + (ruleW != null ? pct(ruleW) : "–") + '</dd></div>' +
+        '<div><dt>Random baseline</dt><dd>' + (base.random ? pct(base.random.win_rate) : "–") + '</dd></div>' +
+        '<div><dt>Val games</dt><dd>' + (args.eval_games || "–") + '</dd></div></dl></div>' +
+      '<div class="card kpi"><div class="name">Latest evaluation</div>' +
+        '<div class="big">' + (last ? pct(last.val.win_rate) : "–") + '<small>' + (last ? "rank " + last.val.avg_max_rank.toFixed(2) : "") + '</small></div>' +
+        '<div class="note">validation games at the target difficulty</div>' +
+        '<dl><div><dt>Train win (recent)</dt><dd>' + (last && last.train ? pct(last.train.win_rate) : "–") + '</dd></div>' +
+        '<div><dt>Train rank</dt><dd>' + (last && last.train ? last.train.avg_max_rank.toFixed(2) : "–") + '</dd></div>' +
+        '<div><dt>Keys left</dt><dd>' + (last ? last.val.avg_keys_left.toFixed(2) : "–") + '</dd></div></dl></div>' +
+      '<div class="card kpi"><div class="name">Progress</div>' +
+        '<div class="big">' + fmtSteps(done) + '<small>/ ' + fmtSteps(total) + ' steps</small></div>' +
+        '<div class="bar"><i style="width:' + Math.min(100, 100 * done / total) + '%"></i></div>' +
+        '<dl><div><dt>Elapsed</dt><dd>' + (last ? fmtTime(last.time) : "–") + '</dd></div>' +
+        '<div><dt>Games played</dt><dd>' + (last ? last.episodes.toLocaleString() : "–") + '</dd></div>' +
+        '<div><dt>' + (cur ? "Curriculum now" : "Start keys / gems") + '</dt><dd>' + (last ? last.stage.keys + " / " + last.stage.gems : "–") + '</dd></div></dl></div>';
+
+    var hl = [];
+    if (base.rule) hl.push({ label: "rule", color: ruleC, y: base.rule.win_rate });
+    if (base.random) hl.push({ label: "random", color: randC, y: base.random.win_rate });
+    var valW = prog.map(function (p) { return [p.timesteps, p.val.win_rate]; });
+    var trW = prog.filter(function (p) { return p.train; }).map(function (p) { return [p.timesteps, p.train.win_rate]; });
+    var top = Math.max.apply(null, [0.05].concat(valW.map(function (p) { return p[1]; }), trW.map(function (p) { return p[1]; }), hl.map(function (h) { return h.y; })));
+    var trLabel = cur ? "train (easier)" : "train";
+    $("tr-ch-win").innerHTML = prog.length ? lineChart({ aria: "Win rate", series: [{ label: trLabel, color: ppoC, pts: trW, dash: true }, { label: "val", color: ppoC, pts: valW }], hlines: hl, ymax: niceMax(top * 1.1), fmt: function (v) { return Math.round(v * 100) + "%"; } }) : '<div class="placeholder">Waiting for the first evaluation.</div>';
+    $("tr-lg-win").innerHTML = legend([["validation", ppoC], [trLabel, ppoC, true], ["rule", ruleC], ["random", randC]]);
+
+    var hr = [];
+    if (base.rule) hr.push({ label: "rule", color: ruleC, y: base.rule.avg_max_rank });
+    if (base.random) hr.push({ label: "random", color: randC, y: base.random.avg_max_rank });
+    $("tr-ch-rank").innerHTML = prog.length ? lineChart({ aria: "Average highest rank",
+      series: [{ label: trLabel, color: ppoC, dash: true, pts: prog.filter(function (p) { return p.train; }).map(function (p) { return [p.timesteps, p.train.avg_max_rank]; }) },
+               { label: "val", color: ppoC, pts: prog.map(function (p) { return [p.timesteps, p.val.avg_max_rank]; }) }],
+      hlines: hr, ymin: 1, ymax: 9, fmt: function (v) { return v.toFixed(1); } }) : "";
+    $("tr-lg-rank").innerHTML = legend([["validation", ppoC], [trLabel, ppoC, true], ["rule", ruleC], ["random", randC]]);
+
+    var names = T.runs.map(function (r) { return r.name; }).filter(function (n) { return T.all[n] && T.all[n].progress.length; });
+    var allTop = 0.05, series = names.map(function (n, i) {
+      var pts = T.all[n].progress.map(function (p) { allTop = Math.max(allTop, p.val.win_rate); return [p.timesteps, p.val.win_rate]; });
+      return { label: n, color: RUN_COLORS[i % RUN_COLORS.length], pts: pts };
+    });
+    $("tr-ch-all").innerHTML = series.length ? lineChart({ aria: "Validation win rate, all runs", series: series, valueOnly: true, hlines: base.rule ? [{ label: "rule", color: ruleC, y: base.rule.win_rate }] : [], ymax: niceMax(Math.max(allTop, ruleW || 0) * 1.1), fmt: function (v) { return Math.round(v * 100) + "%"; } }) : "";
+    $("tr-lg-all").innerHTML = legend(series.map(function (s) { return [s.label, s.color]; }));
+
+    var bars = [];
+    var asFr = function (m) { var fr = { win: m.win_rate }; CAUSES.forEach(function (c) { fr[c] = m.loss_causes[c] || 0; }); return fr; };
+    if (last) bars.push({ label: "ppo latest", n: last.val.games, fr: asFr(last.val) });
+    if (best && best !== last) bars.push({ label: "ppo best", n: best.val.games, fr: asFr(best.val) });
+    ["rule", "random"].forEach(function (a) { if (base[a]) bars.push({ label: a, n: base[a].games, fr: asFr(base[a]) }); });
+    $("tr-ch-out").innerHTML = bars.length ? outcomeBars(bars) : "";
+
+    var shown = [["policy", (args.policy || "mlp") + (args.policy === "cnn" ? " " + args.cnn_layers + "×" + args.cnn_channels : "")],
+      ["timesteps", fmtSteps(args.timesteps)], ["parallel envs", args.n_envs], ["learning rate", args.lr], ["gamma", args.gamma],
+      ["GAE lambda", args.gae_lambda], ["rollout / env", args.n_steps], ["batch size", args.batch_size], ["epochs", args.n_epochs],
+      ["entropy coef", args.ent_coef], ["clip", args.clip], ["hidden layers", args.net], ["seed", args.seed],
+      ["target keys", args.keys != null ? args.keys : META.defaults.keys], ["target gems", args.gems != null ? args.gems : META.defaults.gems],
+      ["curriculum", cur ? (args.cur_keys != null ? args.cur_keys : "–") + "K " + (args.cur_gems != null ? args.cur_gems : "–") + "G → target over " + Math.round(args.cur_frac * 100) + "%" : "off"],
+      ["eval every", fmtSteps(args.eval_every)], ["val seeds from", (cfg.val_seed_start || 0).toLocaleString()]];
+    $("tr-settings").innerHTML = shown.map(function (x) { return '<div><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>'; }).join("");
+    $("tr-note").textContent = "Validation seeds are separate from the test seeds. To compare on the test seeds, open Evaluation, tick ppo and choose the model “" + d.name + "”.";
+  }
+
+  function showTab(name) {
+    Array.prototype.forEach.call(document.querySelectorAll(".tabbar button"), function (b) { b.classList.toggle("on", b.getAttribute("data-tab") === name); });
+    $("tab-eval").hidden = name !== "eval";
+    $("tab-train").hidden = name !== "train";
+    $("run-label").hidden = name !== "eval";
+    try { history.replaceState(null, "", name === "train" ? "#train" : "#"); } catch (e) { /* ignore */ }
+    if (name === "train") refreshTraining(); else refreshMeta();
+  }
+  document.querySelector(".tabbar").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-tab]");
+    if (b) showTab(b.getAttribute("data-tab"));
+  });
+  $("tr-run").addEventListener("change", function () { T.name = $("tr-run").value; T.data = T.all[T.name] || null; renderTraining(); });
+  setInterval(function () {
+    if ($("tab-train").hidden || !$("tr-auto").checked) return;
+    if (T.runs.some(function (r) { return r.status === "running"; })) refreshTraining();
+  }, 5000);
+
+  /* ------------------------------------------------ boot */
+  getJSON("/api/meta").then(function (meta) {
+    setupAgents(meta);
+    $("in-seed").value = meta.test_seed_start;
+    $("in-steps").placeholder = meta.defaults.steps;
+    $("in-keys").placeholder = meta.defaults.keys;
+    $("in-gems").placeholder = meta.defaults.gems;
+    fillFilters();
+    renderAll();
+    return refreshRuns();
+  }).then(function (runs) {
+    if (runs && runs.length) loadRun(runs[0].id);
+    if (location.hash === "#train") showTab("train");
+  }).catch(function (e) { $("status-text").textContent = "Server error: " + e.message; });
+})();
+</script>
+</body>
+</html>

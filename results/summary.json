@@ -1,0 +1,91 @@
+{
+  "config": {},
+  "seed_start": 1000000,
+  "ppo_model": "ppo-curriculum",
+  "agents": {
+    "random": {
+      "games": 1000,
+      "win_rate": 0.0,
+      "avg_max_rank": 3.686,
+      "avg_return": 0.0935855,
+      "avg_steps_spent": 25.456,
+      "avg_keys_left": 3.107,
+      "avg_gems_left": 1.871,
+      "avg_rooms_drafted": 10.117,
+      "loss_causes": {
+        "out_of_steps": 0.082,
+        "out_of_keys": 0.041,
+        "goal_keys": 0.0,
+        "no_doors": 0.877,
+        "truncated": 0.0
+      },
+      "max_rank_hist": {
+        "1": 0,
+        "2": 250,
+        "3": 290,
+        "4": 203,
+        "5": 116,
+        "6": 81,
+        "7": 46,
+        "8": 10,
+        "9": 4
+      }
+    },
+    "rule": {
+      "games": 1000,
+      "win_rate": 0.244,
+      "avg_max_rank": 8.004,
+      "avg_return": 3.7994802,
+      "avg_steps_spent": 46.781,
+      "avg_keys_left": 1.402,
+      "avg_gems_left": 2.145,
+      "avg_rooms_drafted": 24.322,
+      "loss_causes": {
+        "out_of_steps": 0.055,
+        "out_of_keys": 0.254,
+        "goal_keys": 0.238,
+        "no_doors": 0.209,
+        "truncated": 0.0
+      },
+      "max_rank_hist": {
+        "1": 0,
+        "2": 6,
+        "3": 18,
+        "4": 24,
+        "5": 33,
+        "6": 48,
+        "7": 114,
+        "8": 222,
+        "9": 535
+      }
+    },
+    "ppo": {
+      "games": 1000,
+      "win_rate": 0.071,
+      "avg_max_rank": 7.535,
+      "avg_return": 1.9880866000000001,
+      "avg_steps_spent": 43.121,
+      "avg_keys_left": 1.455,
+      "avg_gems_left": 1.768,
+      "avg_rooms_drafted": 18.583,
+      "loss_causes": {
+        "out_of_steps": 0.191,
+        "out_of_keys": 0.269,
+        "goal_keys": 0.201,
+        "no_doors": 0.268,
+        "truncated": 0.0
+      },
+      "max_rank_hist": {
+        "1": 0,
+        "2": 65,
+        "3": 48,
+        "4": 28,
+        "5": 25,
+        "6": 38,
+        "7": 90,
+        "8": 188,
+        "9": 518
+      }
+    }
+  }
+}

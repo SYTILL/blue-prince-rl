@@ -1,0 +1,6 @@
+gymnasium>=1.0
+numpy
+matplotlib
+pytest
+sb3-contrib>=2.4      # Maskable PPO (pulls in stable-baselines3 and torch)
+tensorboard

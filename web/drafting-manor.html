@@ -1,0 +1,1122 @@
+<title>Drafting Manor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: the 9×5 manor plan on blueprint paper (left) with status, action and log panels (right); stacked on narrow screens. Single blueprint palette. */
+:root {
+  color-scheme: dark;
+  --paper: #11294d;
+  --paper-2: #0c1f3c;
+  --panel: #15325d;
+  --grid: #1d3d6b;
+  --line: #dbe8ff;
+  --line-2: #8eaedb;
+  --line-3: #56769f;
+  --steps: #7fe0a8;
+  --keys: #ffcf5c;
+  --gems: #b9a4ff;
+  --bad: #ff8f80;
+  --ink: #0a1a33;
+  --f-display: "Architects Daughter", "Segoe Print", "Comic Sans MS", cursive;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--line);
+  font-family: var(--f-body);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 18px;
+}
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+header.top h1 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 34px; letter-spacing: .02em; line-height: 1.1; text-wrap: balance; }
+header.top p { margin: 4px 0 0; color: var(--line-2); max-width: 60ch; }
+.btn {
+  font: 500 14px/1 var(--f-body);
+  color: var(--ink); background: var(--line);
+  border: 0; border-radius: 3px; padding: 10px 14px; cursor: pointer;
+}
+.btn:hover { background: #fff; }
+.btn.ghost { background: transparent; color: var(--line); box-shadow: inset 0 0 0 1px var(--line-2); }
+.btn.ghost:hover { background: rgba(219, 232, 255, .08); }
+.btn.gold { background: var(--keys); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn:focus-visible, .card:focus-visible, [data-door]:focus-visible, [data-room]:focus-visible { outline: 2px solid var(--keys); outline-offset: 2px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 580px) minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 880px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+.sheet { background: var(--paper-2); border: 1px solid var(--line-3); padding: 12px; min-width: 0; }
+.sheet-title { display: flex; justify-content: space-between; gap: 8px; font-family: var(--f-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--line-2); margin-bottom: 8px; }
+.board-scroll { overflow-x: auto; }
+#board { display: block; width: 100%; min-width: 380px; height: auto; user-select: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12px; color: var(--line-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 18px; height: 6px; display: inline-block; }
+
+/* SVG floor plan */
+.cell-empty { fill: none; stroke: var(--line-3); stroke-width: 1; stroke-dasharray: 2 5; }
+.wall { stroke: var(--line); stroke-width: 3; stroke-linecap: square; fill: none; }
+.pass { stroke: var(--line); stroke-width: 1.5; }
+.barr { stroke: var(--line-3); stroke-width: 2; stroke-dasharray: 3 3; }
+.rk { font-family: var(--f-mono); font-size: 13px; fill: var(--line-2); text-anchor: middle; }
+.lk { font-family: var(--f-mono); font-size: 11px; fill: var(--line-3); text-anchor: start; }
+.lk.on { fill: var(--keys); }
+.nm { font-family: var(--f-display); font-size: 13px; fill: var(--line); text-anchor: middle; }
+.nm.fixed { fill: var(--keys); }
+.rs { font-family: var(--f-mono); font-size: 11.5px; font-weight: 600; }
+.dot { fill: var(--line-2); }
+.room-hit { fill: transparent; cursor: pointer; }
+.room.sel .room-hit { fill: rgba(255, 207, 92, .1); }
+.door { cursor: pointer; }
+.door .dr { fill: var(--line); stroke: var(--ink); stroke-width: 1; }
+.door.locked .dr { fill: var(--keys); }
+.door .kh { fill: var(--ink); }
+.door.cant .dr { opacity: .45; }
+.door.sealed { cursor: default; }
+.door.sealed .dr { fill: var(--keys); opacity: .55; }
+.door.sel .dr { stroke: var(--keys); stroke-width: 3; }
+.door .hit { fill: transparent; }
+.door:hover .dr { filter: brightness(1.2); }
+.dead { stroke: var(--bad); stroke-width: 2; }
+.target { fill: rgba(255, 207, 92, .08); stroke: var(--keys); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.open-btn { cursor: pointer; }
+.open-btn rect { fill: var(--line); stroke: var(--ink); stroke-width: 1; }
+.open-btn.locked rect { fill: var(--keys); }
+.open-btn text { font: 600 13px var(--f-body); fill: var(--ink); text-anchor: middle; }
+.open-btn:hover rect { filter: brightness(1.12); }
+.open-btn:focus-visible { outline: none; }
+.open-btn:focus-visible rect { stroke: var(--keys); stroke-width: 3; }
+.open-btn.off { cursor: not-allowed; }
+.open-btn.off rect { fill: var(--line-3); }
+.open-btn.off text { fill: var(--paper-2); }
+.open-cost { font: 600 11px var(--f-mono); fill: var(--keys); text-anchor: middle; }
+.open-cost.bad { fill: var(--bad); }
+.path { fill: none; stroke: var(--keys); stroke-width: 2.5; stroke-dasharray: 1 7; stroke-linecap: round; }
+.me { fill: var(--keys); stroke: var(--ink); stroke-width: 2; }
+.me-ring { fill: none; stroke: var(--keys); stroke-width: 1.5; opacity: .6; }
+@media (prefers-reduced-motion: no-preference) {
+  .me-ring { animation: ring 1.8s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes ring { from { transform: scale(.7); opacity: .8; } to { transform: scale(1.9); opacity: 0; } }
+}
+
+/* Panels */
+.side { display: grid; gap: 14px; min-width: 0; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat { border: 1px solid var(--line-3); padding: 8px 10px; display: grid; gap: 2px; }
+.stat b { font: 600 26px/1.1 var(--f-mono); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 6px; }
+.stat small { color: var(--line-2); font-size: 12px; }
+.stat.steps b { color: var(--steps); } .stat.keys b { color: var(--keys); } .stat.gems b { color: var(--gems); }
+.substats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; font-size: 12px; color: var(--line-2); }
+.substats b { display: block; font: 600 15px/1.3 var(--f-mono); color: var(--line); font-variant-numeric: tabular-nums; }
+.ic { width: 1em; height: 1em; display: inline-block; vertical-align: -0.12em; }
+.stat .ic { width: 20px; height: 20px; }
+#action h3 { margin: 0 0 4px; font-size: 15px; }
+#action p { margin: 0 0 8px; color: var(--line-2); }
+#action .cost { font-family: var(--f-mono); font-size: 13px; color: var(--line); margin-bottom: 10px; display: grid; gap: 2px; }
+#action .why { color: var(--bad); font-size: 13px; margin: 0 0 8px; }
+#log { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; font-size: 13px; display: grid; gap: 4px; }
+#log li { display: grid; grid-template-columns: 2.6em minmax(0, 1fr); gap: 6px; }
+#log li span:first-child { font-family: var(--f-mono); color: var(--line-3); font-variant-numeric: tabular-nums; }
+#log li.good span:last-child { color: var(--steps); }
+#log li.bad span:last-child { color: var(--bad); }
+details.sheet summary { cursor: pointer; font-weight: 500; }
+details.sheet[open] summary { margin-bottom: 10px; }
+.rules { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; color: var(--line-2); }
+.rules b { color: var(--line); font-weight: 500; }
+.tbl-wrap { overflow-x: auto; margin-top: 10px; }
+table.lock { border-collapse: collapse; font-family: var(--f-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+table.lock th, table.lock td { border: 1px solid var(--line-3); padding: 3px 7px; text-align: center; }
+table.lock th { color: var(--line-2); font-weight: 400; }
+.form { display: grid; gap: 10px; }
+.form fieldset { border: 1px solid var(--line-3); margin: 0; padding: 8px 10px 10px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.form legend { padding: 0 4px; color: var(--line-2); font-size: 12px; }
+.form label { display: grid; gap: 2px; font-size: 12px; color: var(--line-2); }
+.form input { width: 100%; min-width: 0; font: 14px var(--f-mono); color: var(--line); background: var(--paper); border: 1px solid var(--line-3); padding: 5px 6px; border-radius: 2px; }
+.form .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.form .row label { flex: 1 1 140px; }
+.note { font-size: 12px; color: var(--line-3); margin: 0; }
+
+/* Draft and result dialogs */
+.overlay {
+  position: fixed; inset: 0; z-index: 20;
+  background: rgba(6, 15, 31, .78);
+  display: flex; overflow-y: auto;
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.dialog { margin: auto; background: var(--paper); border: 1px solid var(--line-2); width: min(760px, 100%); padding: 18px; display: grid; gap: 14px; }
+.dialog h2 { margin: 0; font-weight: 700; font-size: 22px; line-height: 1.3; }
+.dialog p { margin: 0; color: var(--line-2); }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 620px) { .cards { grid-template-columns: minmax(0, 1fr); } }
+.card {
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  background: var(--paper-2); border: 1px solid var(--line-3); padding: 12px;
+  display: grid; grid-template-columns: 84px minmax(0, 1fr); grid-template-areas: "pic name" "pic meta" "ledger ledger"; column-gap: 12px; row-gap: 3px; align-content: start;
+  position: relative;
+}
+@media (min-width: 621px) { .card { grid-template-columns: minmax(0, 1fr); grid-template-areas: "pic" "name" "meta" "ledger"; } }
+.card:hover:not(:disabled) { border-color: var(--keys); }
+.card:disabled { cursor: not-allowed; opacity: .5; }
+.card svg.mini { grid-area: pic; width: 84px; height: 84px; }
+@media (min-width: 621px) { .card svg.mini { width: 100%; max-width: 120px; height: auto; aspect-ratio: 1; justify-self: center; } }
+.card .cn { grid-area: name; font-family: var(--f-display); font-size: 19px; line-height: 1.2; }
+.card .cm { grid-area: meta; font-size: 12px; color: var(--line-2); }
+.card .ledger { grid-area: ledger; display: grid; gap: 5px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-3); }
+.card .lrow { display: grid; grid-template-columns: 4.4em minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.card .lbl { font: 600 10.5px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--line-2); }
+.card .vals { display: flex; flex-wrap: wrap; gap: 3px 12px; font: 600 13px var(--f-mono); }
+.card .muted { color: var(--line-3); font-weight: 400; }
+.card .ck { position: absolute; top: 8px; right: 10px; font: 12px var(--f-mono); color: var(--line-3); }
+.card .warn { color: var(--bad); font-size: 12px; font-family: var(--f-body); font-weight: 400; }
+.mini .wall { stroke-width: 4; }
+.mini .entry { fill: var(--keys); }
+.end-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+/* How to play */
+.intro .goal { border: 1px dashed var(--keys); padding: 10px 12px; color: var(--line); }
+.intro .goal b { color: var(--keys); }
+.steps-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: st; }
+.steps-list li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; counter-increment: st; }
+.steps-list li::before { content: counter(st); font: 600 15px/28px var(--f-mono); text-align: center; width: 28px; height: 28px; border: 1px solid var(--line-2); border-radius: 50%; color: var(--line); }
+.steps-list b { color: var(--line); font-weight: 600; }
+.steps-list p { margin: 2px 0 0; color: var(--line-2); }
+.res-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 560px) { .res-row { grid-template-columns: minmax(0, 1fr); } }
+.res-row div { border: 1px solid var(--line-3); padding: 8px 10px; font-size: 13px; color: var(--line-2); }
+.res-row b { display: flex; align-items: center; gap: 6px; font: 600 14px var(--f-mono); margin-bottom: 2px; }
+.tips { margin: 0; padding-left: 1.1em; color: var(--line-2); font-size: 13px; display: grid; gap: 3px; }
+.kbd-door { display: inline-block; width: 16px; height: 6px; vertical-align: middle; margin: 0 2px; }
+.end-stats div { border: 1px solid var(--line-3); padding: 8px 10px; font-size: 12px; color: var(--line-2); }
+.end-stats b { display: block; font: 600 20px/1.2 var(--f-mono); color: var(--line); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.c-steps { color: var(--steps); } .c-keys { color: var(--keys); } .c-gems { color: var(--gems); } .c-bad { color: var(--bad); }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-step" viewBox="0 0 16 16"><ellipse cx="5" cy="9.5" rx="2.6" ry="4" fill="currentColor"/><ellipse cx="11" cy="6" rx="2.6" ry="4" fill="currentColor"/></symbol>
+    <symbol id="i-key" viewBox="0 0 16 16"><circle cx="4.6" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7.6 8H15M12.5 8v3M15 8v2.4" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-gem" viewBox="0 0 16 16"><path d="M4 2h8l3.5 4.2L8 15 .5 6.2z" fill="currentColor"/><path d="M.5 6.2h15M5.6 6.2 8 15l2.4-8.8L8 2" fill="none" stroke="#0a1a33" stroke-width=".9" opacity=".55"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Drafting Manor</h1>
+      <p>A minimal Blue Prince. Open a door, draft one of three floorplans, and build a path to the Antechamber at the top of the manor.</p>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" type="button" id="btn-help">How to play</button>
+      <button class="btn ghost" type="button" id="btn-restart">Replay seed</button>
+      <button class="btn" type="button" id="btn-new">New game</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="sheet" aria-label="Manor floor plan">
+      <div class="sheet-title"><span>Mount Holly · 9 × 5</span><span id="seed-label"></span></div>
+      <div class="board-scroll"><svg id="board" viewBox="-34 -8 584 940" role="img" aria-label="Manor floor plan"></svg></div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--line)"></i>Open door</span>
+        <span><i class="sw" style="background:var(--keys)"></i>Locked door (1 key)</span>
+        <span><svg class="ic" style="color:var(--keys)"><circle cx="8" cy="8" r="6" fill="currentColor"/></svg>You are here</span>
+        <span>Left: rank. Right: chance that a new door into that rank is locked.</span>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="sheet" aria-label="Resources">
+        <div class="stats">
+          <div class="stat steps"><small>Steps</small><b><svg class="ic"><use href="#i-step"/></svg><span id="s-steps">0</span></b></div>
+          <div class="stat keys"><small>Keys</small><b><svg class="ic"><use href="#i-key"/></svg><span id="s-keys">0</span></b></div>
+          <div class="stat gems"><small>Gems</small><b><svg class="ic"><use href="#i-gem"/></svg><span id="s-gems">0</span></b></div>
+        </div>
+        <div class="substats">
+          <div>Best rank<b id="s-rank">1 / 9</b></div>
+          <div>Cards in deck<b id="s-deck">0</b></div>
+          <div>AI reward<b id="s-reward">0</b></div>
+        </div>
+      </section>
+
+      <section class="sheet" id="action" aria-live="polite"></section>
+
+      <section class="sheet">
+        <div class="sheet-title"><span>Log</span><span id="s-turn"></span></div>
+        <ol id="log"></ol>
+      </section>
+
+      <details class="sheet">
+        <summary>Rules</summary>
+        <ul class="rules">
+          <li><b>Steps</b>: entering a room costs 1. To reach a distant door you walk the shortest path automatically, paying 1 step per room. The run ends at 0.</li>
+          <li><b>Locked doors</b>: cost 1 key to open. Whether a door is locked is rolled by rank when the door appears, and it is visible from the start.</li>
+          <li><b>Drafting</b>: opening a door draws 3 different floorplans from the deck. A rarity is picked by weight first, then one of the remaining rooms of that rarity at random. The first slot is a free room when possible, and costs nothing even when it is not. The three are never all dead ends. A draft cannot be cancelled.</li>
+          <li><b>Placement</b>: rooms whose doors would face outside the house are never offered. L-shaped rooms always turn their fixed way (left or right); T-shaped rooms get a random valid orientation.</li>
+          <li><b>Connecting</b>: if a new room's door meets an existing door, the two join and open, even if locked. If it meets a wall, it is blocked. The Antechamber can only be reached this way, and walking into it costs <b>3 keys</b>.</li>
+          <li><b>Resources</b>: gained once, when the room is placed. Some red rooms cost steps.</li>
+          <li><b>AI reward</b>: 2<sup>r−1</sup>/256 the first time you reach rank r, +10 for reaching the goal. This previews the reward planned for the RL environment.</li>
+        </ul>
+        <div class="tbl-wrap">
+          <table class="lock" id="lock-table"></table>
+        </div>
+      </details>
+
+      <details class="sheet">
+        <summary>Settings</summary>
+        <form class="form" id="settings">
+          <div class="row">
+            <label for="set-seed">Seed<input id="set-seed" type="text" autocomplete="off"></label>
+            <label for="set-steps">Starting steps<input id="set-steps" type="number" min="1" max="999"></label>
+          </div>
+          <div class="row">
+            <label for="set-keys">Starting keys<input id="set-keys" type="number" min="0" max="99"></label>
+            <label for="set-gems">Starting gems<input id="set-gems" type="number" min="0" max="99"></label>
+          </div>
+          <fieldset>
+            <legend>Rarity weights</legend>
+            <label for="set-wC">Commonplace<input id="set-wC" type="number" min="0" max="1000"></label>
+            <label for="set-wS">Standard<input id="set-wS" type="number" min="0" max="1000"></label>
+            <label for="set-wU">Unusual<input id="set-wU" type="number" min="0" max="1000"></label>
+            <label for="set-wR">Rare<input id="set-wR" type="number" min="0" max="1000"></label>
+          </fieldset>
+          <div class="actions">
+            <button class="btn" type="submit">New game with these settings</button>
+            <button class="btn ghost" type="button" id="btn-defaults">Reset to defaults</button>
+          </div>
+          <p class="note">The deck holds each of the 99 rooms exactly once. A placed room leaves the deck for the rest of the run.</p>
+        </form>
+      </details>
+    </aside>
+  </div>
+</div>
+
+<div class="overlay" id="intro" hidden>
+  <div class="dialog intro" role="dialog" aria-modal="true" aria-labelledby="intro-h">
+    <div>
+      <h2 id="intro-h">How to play</h2>
+      <p>You build a manor one room at a time, choosing which door to open and which room to put behind it.</p>
+    </div>
+    <p class="goal"><b>Goal:</b> reach the <b>Antechamber</b> at the top of the plan. Build rooms until one of them connects to an Antechamber door, then walk in by spending <b>3 keys</b>.</p>
+    <ol class="steps-list">
+      <li><div><b>Pick a door.</b><p>Click a door on the edge of your rooms. White <i class="kbd-door" style="background:var(--line)"></i> is open; yellow <i class="kbd-door" style="background:var(--keys)"></i> is locked and costs 1 key.</p></div></li>
+      <li><div><b>Open it.</b><p>An <b>Open</b> button appears in the dashed empty cell behind the door. Walking there costs 1 step per room you pass through, plus 1 step to enter the new room.</p></div></li>
+      <li><div><b>Draft one of three rooms.</b><p>Each card shows the room's doors (the yellow triangle is where you walk in), its <b>Cost</b> and its <b>Reward</b>. You must pick one; drafts cannot be cancelled.</p></div></li>
+      <li><div><b>Keep going up.</b><p>New doors are more likely to be locked the higher you go (the % on the right of the plan). Plan a route, not just the next room.</p></div></li>
+    </ol>
+    <div class="res-row">
+      <div><b class="c-steps"><svg class="ic"><use href="#i-step"/></svg>Steps</b>Your time. The run ends at 0.</div>
+      <div><b class="c-keys"><svg class="ic"><use href="#i-key"/></svg>Keys</b>Open locked doors. Save 3 for the goal.</div>
+      <div><b class="c-gems"><svg class="ic"><use href="#i-gem"/></svg>Gems</b>Pay for better rooms.</div>
+    </div>
+    <ul class="tips">
+      <li>Dead ends often hold rewards, but they close that branch.</li>
+      <li>Rooms with 3 or 4 doors keep your options open.</li>
+      <li>Every room exists once. Once placed, it won't be drafted again this run.</li>
+    </ul>
+    <div class="actions">
+      <button class="btn" type="button" id="intro-start">Start drafting</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="draft" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="draft-h">
+    <div>
+      <h2 id="draft-h">Draft a room</h2>
+      <p id="draft-p"></p>
+    </div>
+    <div class="cards" id="cards"></div>
+  </div>
+</div>
+
+<div class="overlay" id="end" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="end-h">
+    <div>
+      <h2 id="end-h"></h2>
+      <p id="end-p"></p>
+    </div>
+    <div class="end-stats" id="end-stats"></div>
+    <div class="actions">
+      <button class="btn ghost" type="button" id="end-view">View the plan</button>
+      <button class="btn ghost" type="button" id="end-restart">Replay seed</button>
+      <button class="btn" type="button" id="end-new">New game</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------- Rule data ---------------- */
+  var ROWS = 9, COLS = 5;
+  var LOCK = { 1: 0, 2: 0, 3: 0, 4: 0.25, 5: 0.45, 6: 0.6, 7: 0.7, 8: 0.9, 9: 1 };
+  var DIR = { N: [1, 0], S: [-1, 0], E: [0, 1], W: [0, -1] };   // rank 1 is the bottom row, rank 9 the top
+  var OPP = { N: "S", S: "N", E: "W", W: "E" };
+  var LEFT = { N: "W", W: "S", S: "E", E: "N" };
+  var RIGHT = { N: "E", E: "S", S: "W", W: "N" };
+  var SIDES = ["N", "E", "S", "W"];
+  var GOAL_KEYS = 3;   // keys spent to walk into the Antechamber
+  var DIR_NAME = { N: "north", S: "south", E: "east", W: "west" };
+  var COL = ["", "A", "B", "C", "D", "E"];
+  function cellName(r, c) { return COL[c] + r; }
+  var RAR = { C: { label: "Commonplace", n: 1 }, S: { label: "Standard", n: 2 }, U: { label: "Unusual", n: 3 }, R: { label: "Rare", n: 4 } };
+  var SHAPE = { D: "Dead end", S: "Straight", L: "L-shape", T: "T-shape", X: "4-way" };
+  var DEFAULTS = { steps: 50, keys: 2, gems: 2, weights: { C: 50, S: 30, U: 15, R: 5 } };
+
+  function R(name, shape, rarity, cost, steps, keys, gems, red) {
+    var t = shape.charAt(1);
+    return { name: name, shape: shape.charAt(0), turn: t === "l" ? "L" : t === "r" ? "R" : null, rarity: rarity, cost: cost, steps: steps || 0, keys: keys || 0, gems: gems || 0, red: !!red };
+  }
+  var ROOMS = [
+    // Dead ends (29)
+    R("Closet", "D", "C", 0, 0, 1, 0), R("Storeroom", "D", "C", 0, 0, 1, 1), R("Guest Bedroom", "D", "C", 0, 10), R("Nursery", "D", "C", 1, 5),
+    R("Walk-In Closet", "D", "S", 1, 0, 1, 1), R("Terrace", "D", "S", 0), R("Greenhouse", "D", "S", 1, 0, 0, 2), R("Lavatory", "D", "S", 0, 0, 0, 0, 1),
+    R("Utility Closet", "D", "S", 0), R("Coat Check", "D", "S", 0), R("Solarium", "D", "S", 1), R("Dormitory", "D", "S", 0), R("Planetarium", "D", "S", 0),
+    R("Garage", "D", "U", 1, 0, 3), R("Wine Cellar", "D", "U", 0, 0, 0, 3), R("Study", "D", "U", 0, 0, 0, 1), R("Servant's Quarters", "D", "U", 1, 0, 2),
+    R("Sauna", "D", "U", 0), R("Mail Room", "D", "U", 0), R("Bunk Room", "D", "U", 0), R("Locksmith", "D", "U", 1), R("Clock Tower", "D", "U", 1),
+    R("Master Bedroom", "D", "R", 2, 10), R("Attic", "D", "R", 3, 0, 2, 2), R("Vault", "D", "R", 3), R("Freezer", "D", "R", 0),
+    R("Her Ladyship's Chamber", "D", "R", 0), R("Laundry Room", "D", "R", 1), R("Furnace", "D", "R", 0, 0, 0, 0, 1),
+    // Straight (14)
+    R("Spare Room", "S", "C", 0), R("Corridor", "S", "C", 0), R("Rumpus Room", "S", "S", 1), R("The Kennel", "S", "S", 0), R("Tunnel", "S", "S", 0),
+    R("Workshop", "S", "U", 0), R("Foyer", "S", "U", 2), R("Ballroom", "S", "U", 2), R("Secret Passage", "S", "U", 1), R("Veranda", "S", "U", 2),
+    R("Locker Room", "S", "R", 1, 0, 3), R("Gallery", "S", "R", 0), R("Drafting Studio", "S", "R", 2), R("Showroom", "S", "R", 2),
+    // L-shape (27): l = turns left, r = turns right
+    R("Bedroom", "Ll", "C", 0, 2), R("Parlor", "Lr", "C", 0, 0, 0, 1), R("Billiard Room", "Ll", "C", 0, 0, 1), R("Nook", "Lr", "C", 0, 0, 1),
+    R("Pantry", "Ll", "C", 0, 3), R("Kitchen", "Lr", "C", 1),
+    R("Boudoir", "Ll", "S", 0, 0, 0, 1), R("Office", "Lr", "S", 2, 0, 0, 1), R("Laboratory", "Ll", "S", 1), R("Observatory", "Lr", "S", 1),
+    R("Patio", "Ll", "S", 1, 0, 0, 1), R("Commissary", "Lr", "S", 1), R("The Armory", "Ll", "S", 0),
+    R("Library", "Lr", "U", 0), R("Music Room", "Ll", "U", 2, 0, 2), R("Pump Room", "Lr", "U", 0), R("Maid's Chamber", "Ll", "U", 0, 0, 0, 0, 1),
+    R("Dovecote", "Lr", "U", 0), R("Classroom", "Ll", "U", 1), R("Casino", "Lr", "U", 2), R("Conservatory", "Ll", "U", 1), R("Lost & Found", "Lr", "U", 0, 0, 0, 0, 1),
+    R("Room 8", "Ll", "R", 0), R("Trophy Room", "Lr", "R", 5), R("Morning Room", "Ll", "R", 0), R("Bookshop", "Lr", "R", 1), R("Treasure Trove", "Ll", "R", 1),
+    // T-shape (20)
+    R("Hallway", "T", "C", 0), R("Den", "T", "C", 0, 0, 0, 1), R("Drawing Room", "T", "C", 1, 0, 0, 1), R("Chapel", "T", "C", 0, -2, 0, 0, 1),
+    R("West Wing Hall", "T", "S", 0), R("The Pool", "T", "S", 1), R("Security", "T", "S", 1), R("Dining Room", "T", "S", 0, 10),
+    R("Courtyard", "T", "S", 1, 0, 0, 1), R("Gymnasium", "T", "S", 0, -2, 0, 0, 1), R("Darkroom", "T", "S", 0, -1, 0, 0, 1),
+    R("East Wing Hall", "T", "U", 0), R("Conference Room", "T", "U", 0), R("Boiler Room", "T", "U", 1), R("Aquarium", "T", "U", 1),
+    R("The Foundation", "T", "R", 0), R("Secret Garden", "T", "R", 0), R("Gift Shop", "T", "R", 0), R("Closed Exhibit", "T", "R", 0, 0, 0, 0, 1), R("Throne Room", "T", "R", 5),
+    // 4-way (9)
+    R("Passageway", "X", "C", 2), R("Great Hall", "X", "U", 0), R("Archives", "X", "U", 0, -1, 0, 0, 1), R("Cloister", "X", "U", 3, 0, 0, 2),
+    R("Vestibule", "X", "U", 2), R("Mechanarium", "X", "U", 0), R("Rotunda", "X", "R", 3), R("Weight Room", "X", "R", 0, -10, 0, 0, 1), R("Chamber of Mirrors", "X", "R", 0)
+  ];
+  var BY_NAME = {};
+  ROOMS.forEach(function (rm) { BY_NAME[rm.name] = rm; });
+
+  /* ---------------- State ---------------- */
+  var S = null;
+
+  function hashSeed(str) {
+    var h = 2166136261 >>> 0;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h | 0;
+  }
+  function rnd() {   // mulberry32; state lives in S.rng so replays and snapshots are easy
+    S.rng = (S.rng + 0x6D2B79F5) | 0;
+    var t = S.rng;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  function choice(arr) { return arr[Math.floor(rnd() * arr.length)]; }
+  function weighted(items, weights) {
+    var total = 0, i;
+    for (i = 0; i < weights.length; i++) total += Math.max(0, weights[i]);
+    if (total <= 0) return choice(items);
+    var x = rnd() * total;
+    for (i = 0; i < items.length; i++) { x -= Math.max(0, weights[i]); if (x < 0) return items[i]; }
+    return items[items.length - 1];
+  }
+
+  function key(r, c) { return r + "," + c; }
+  function parse(k) { var p = k.split(","); return [Number(p[0]), Number(p[1])]; }
+  function inGrid(r, c) { return r >= 1 && r <= ROWS && c >= 1 && c <= COLS; }
+  function nbr(r, c, d) { return [r + DIR[d][0], c + DIR[d][1]]; }
+  function edgeKey(r, c, d) {
+    var n = nbr(r, c, d), a = key(r, c), b = key(n[0], n[1]);
+    return a < b ? a + "|" + b : b + "|" + a;
+  }
+  function roomAt(r, c) { return S.rooms[key(r, c)] || null; }
+
+  function randomSeed() { return String(Math.floor(Math.random() * 900000) + 100000); }
+
+  function newGame(cfg) {
+    S = {
+      cfg: cfg, rng: hashSeed(cfg.seed), rooms: {}, locks: {}, dead: {},
+      player: key(1, 3), steps: cfg.steps, keys: cfg.keys, gems: cfg.gems,
+      deck: {}, maxRank: 1, reward: 0, log: [], turn: 0, drafted: 0, keysUsed: 0, gemsUsed: 0,
+      over: null, draft: null, sel: null, endHidden: false
+    };
+    ROOMS.forEach(function (rm) { S.deck[rm.name] = 1; });   // every room exists exactly once
+    S.rooms[key(1, 3)] = { name: "Entrance Hall", fixed: "start", r: 1, c: 3, doors: ["W", "N", "E"] };
+    S.rooms[key(9, 3)] = { name: "Antechamber", fixed: "goal", r: 9, c: 3, doors: ["W", "S", "E"] };
+    rollLocks(S.rooms[key(1, 3)]);
+    addLog("Start in the Entrance Hall with " + cfg.steps + " steps, " + cfg.keys + " keys, " + cfg.gems + " gems.");
+    render();
+  }
+
+  function addLog(msg, kind) { S.log.unshift({ t: S.turn, msg: msg, kind: kind || "" }); if (S.log.length > 80) S.log.length = 80; }
+
+  // When a new door leads to an empty cell, roll whether it is locked, using the higher rank of the two cells.
+  function rollLocks(room) {
+    room.doors.forEach(function (d) {
+      var n = nbr(room.r, room.c, d);
+      if (!inGrid(n[0], n[1]) || roomAt(n[0], n[1])) return;
+      var ek = edgeKey(room.r, room.c, d);
+      if (S.locks[ek] === undefined) S.locks[ek] = rnd() < LOCK[Math.max(room.r, n[0])];
+    });
+  }
+
+  function connected(room, d) {
+    var n = nbr(room.r, room.c, d), other = inGrid(n[0], n[1]) ? roomAt(n[0], n[1]) : null;
+    return !!other && other.doors.indexOf(OPP[d]) >= 0;
+  }
+
+  function bfs(startKey) {
+    var dist = {}, prev = {}, q = [startKey];
+    dist[startKey] = 0;
+    while (q.length) {
+      var k = q.shift(), rm = S.rooms[k];
+      rm.doors.forEach(function (d) {
+        if (!connected(rm, d)) return;
+        var n = nbr(rm.r, rm.c, d), nk = key(n[0], n[1]);
+        if (dist[nk] === undefined) { dist[nk] = dist[k] + 1; prev[nk] = k; q.push(nk); }
+      });
+    }
+    return { dist: dist, prev: prev };
+  }
+  function pathTo(reach, target) {
+    if (reach.dist[target] === undefined) return null;
+    var p = [target];
+    while (p[0] !== S.player) p.unshift(reach.prev[p[0]]);
+    return p;
+  }
+
+  function frontier() {
+    var out = [];
+    Object.keys(S.rooms).forEach(function (k) {
+      var rm = S.rooms[k];
+      rm.doors.forEach(function (d) {
+        var n = nbr(rm.r, rm.c, d);
+        if (!inGrid(n[0], n[1]) || roomAt(n[0], n[1])) return;
+        var ek = edgeKey(rm.r, rm.c, d);
+        if (S.dead[ek]) return;
+        out.push({ r: rm.r, c: rm.c, d: d, ek: ek, locked: !!S.locks[ek], room: rm });
+      });
+    });
+    return out;
+  }
+
+  function doorStatus(f, reach) {
+    var k = key(f.r, f.c), dist = reach.dist[k];
+    var st = { dist: dist, reachable: false, ok: false, why: "" };
+    if (f.room.fixed === "goal") { st.reachable = false; st.why = "Antechamber doors cannot be opened from outside. Place a room whose door meets one."; return st; }
+    if (dist === undefined) { st.reachable = false; st.why = "There is no path from where you are to this door."; return st; }
+    st.reachable = true;
+    if (S.steps < dist + 1) { st.why = "Not enough steps: " + dist + " to reach this door plus 1 to enter the new room."; return st; }
+    if (f.locked && S.keys < 1) { st.why = "This door is locked and you have no keys."; return st; }
+    st.ok = true;
+    return st;
+  }
+
+  /* ---------------- Placement and drafting ---------------- */
+  function orientations(rm, move) {
+    var entry = OPP[move];
+    switch (rm.shape) {
+      case "D": return [[entry]];
+      case "S": return [[entry, move]];
+      case "X": return [["N", "E", "S", "W"]];
+      case "L": return [[entry, (rm.turn === "L" ? LEFT : RIGHT)[move]]];
+      case "T": return SIDES.filter(function (w) { return w !== entry; }).map(function (w) { return SIDES.filter(function (d) { return d !== w; }); });
+    }
+    return [];
+  }
+  function validOrients(rm, r, c, move) {
+    return orientations(rm, move).filter(function (doors) {
+      return doors.every(function (d) { var n = nbr(r, c, d); return inGrid(n[0], n[1]); });
+    });
+  }
+
+  function drawOffers(r, c, move) {
+    var cands = [];
+    ROOMS.forEach(function (rm) {
+      if (S.deck[rm.name] <= 0) return;
+      var ors = validOrients(rm, r, c, move);
+      if (ors.length) cands.push({ rm: rm, ors: ors });
+    });
+    var w = S.cfg.weights;
+    function pick(pool) {
+      if (!pool.length) return null;
+      var rars = ["C", "S", "U", "R"].filter(function (k) { return pool.some(function (x) { return x.rm.rarity === k; }); });
+      var rar = weighted(rars, rars.map(function (k) { return w[k]; }));
+      var sub = pool.filter(function (x) { return x.rm.rarity === rar; });
+      return weighted(sub, sub.map(function (x) { return S.deck[x.rm.name]; }));
+    }
+    function notPicked(list) { return cands.filter(function (x) { return list.indexOf(x) < 0; }); }
+    var picked = [];
+    var free = cands.filter(function (x) { return x.rm.cost === 0; });
+    var first = pick(free.length ? free : cands);
+    if (first) picked.push(first);
+    for (var i = 1; i < 3; i++) { var p = pick(notPicked(picked)); if (p) picked.push(p); }
+    // If all three are dead ends, swap the last one for another shape
+    if (picked.length === 3 && picked.every(function (x) { return x.rm.shape === "D"; })) {
+      var alt = notPicked(picked).filter(function (x) { return x.rm.shape !== "D"; });
+      if (alt.length) picked[2] = pick(alt);
+    }
+    return picked.map(function (x, idx) {
+      var bypass = idx === 0 && x.rm.cost > 0;
+      return { name: x.rm.name, doors: choice(x.ors), cost: idx === 0 ? 0 : x.rm.cost, bypass: bypass };
+    });
+  }
+
+  /* ---------------- Actions ---------------- */
+  function enter(k) {
+    S.player = k;
+    var r = parse(k)[0];
+    while (S.maxRank < r) {
+      S.maxRank++;
+      S.reward += Math.pow(2, S.maxRank - 1) / 256;
+      if (S.maxRank > 1) addLog("Reached rank " + S.maxRank + " for the first time.", "good");
+    }
+  }
+
+  function openDoor(f) {
+    if (S.over || S.draft) return;
+    var reach = bfs(S.player), st = doorStatus(f, reach);
+    if (!st.ok) return;
+    S.turn++;
+    var path = pathTo(reach, key(f.r, f.c));
+    S.steps -= st.dist;
+    if (st.dist > 0) { path.slice(1).forEach(enter); }
+    var n = nbr(f.r, f.c, f.d);
+    if (f.locked) { S.keys--; S.keysUsed++; S.locks[f.ek] = false; addLog("Used a key on the locked " + DIR_NAME[f.d] + " door of " + cellName(f.r, f.c) + "."); }
+    var offers = drawOffers(n[0], n[1], f.d);
+    if (!offers.length) {
+      S.dead[f.ek] = true;
+      addLog("No room in the deck fits here. The door is blocked.", "bad");
+      S.sel = null;
+      checkEnd();
+      render();
+      return;
+    }
+    S.draft = { from: key(f.r, f.c), d: f.d, target: key(n[0], n[1]), offers: offers };
+    S.sel = null;
+    render();
+  }
+
+  function chooseOffer(i) {
+    var D = S.draft;
+    if (!D || !D.offers[i]) return;
+    var o = D.offers[i], rm = BY_NAME[o.name];
+    if (S.gems < o.cost) return;
+    S.gems -= o.cost; S.gemsUsed += o.cost;
+    S.deck[o.name]--;
+    var t = parse(D.target);
+    var placed = { name: o.name, r: t[0], c: t[1], doors: o.doors.slice() };
+    S.rooms[D.target] = placed;
+    rollLocks(placed);
+    S.draft = null;
+    S.drafted++;
+    S.steps -= 1;
+    enter(D.target);
+    S.steps = Math.max(0, S.steps + rm.steps);
+    S.keys += rm.keys;
+    S.gems += rm.gems;
+    var gains = gainText(rm);
+    addLog("Placed " + o.name + " at " + cellName(t[0], t[1]) + (o.cost ? " for " + o.cost + " gem" + (o.cost > 1 ? "s" : "") : "") + (gains ? ": " + gains : "") + ".", rm.steps < 0 ? "bad" : gains ? "good" : "");
+    if (connected(placed, "N") && roomAt(t[0] + 1, t[1]) && roomAt(t[0] + 1, t[1]).fixed === "goal" ||
+        connected(placed, "E") && roomAt(t[0], t[1] + 1) && roomAt(t[0], t[1] + 1).fixed === "goal" ||
+        connected(placed, "W") && roomAt(t[0], t[1] - 1) && roomAt(t[0], t[1] - 1).fixed === "goal") {
+      addLog("An Antechamber door is open. Click the Antechamber to enter.", "good");
+    }
+    checkEnd();
+    render();
+  }
+
+  function walkTo(k) {
+    if (S.over || S.draft) return;
+    var reach = bfs(S.player), dist = reach.dist[k];
+    if (dist === undefined || dist === 0 || dist > S.steps) return;
+    if (S.rooms[k].fixed === "goal" && S.keys < GOAL_KEYS) return;
+    S.turn++;
+    S.steps -= dist;
+    pathTo(reach, k).slice(1).forEach(enter);
+    var rm = S.rooms[k];
+    if (rm.fixed === "goal") {
+      S.keys -= GOAL_KEYS; S.keysUsed += GOAL_KEYS;
+      addLog("Spent " + GOAL_KEYS + " keys to enter the Antechamber.");
+      S.reward += 10;
+      S.over = { win: true, reason: "You entered the Antechamber." };
+      addLog("Reached the Antechamber!", "good");
+    } else {
+      addLog("Walked to " + rm.name + " (" + dist + " step" + (dist > 1 ? "s" : "") + ").");
+      checkEnd();
+    }
+    S.sel = null;
+    render();
+  }
+
+  function checkEnd() {
+    if (S.over) return;
+    var reach = bfs(S.player);
+    var goal = key(9, 3);
+    var goalOpen = reach.dist[goal] !== undefined;
+    if (goalOpen && reach.dist[goal] <= S.steps && S.steps > 0 && S.keys >= GOAL_KEYS) return;
+    var fr = frontier(), anyOk = false, anyReach = false, lockedOnly = false;
+    fr.forEach(function (f) {
+      var st = doorStatus(f, reach);
+      if (st.ok) anyOk = true;
+      if (st.reachable) { anyReach = true; if (f.locked && S.keys < 1 && S.steps >= st.dist + 1) lockedOnly = true; }
+    });
+    if (anyOk) return;
+    var reason = S.steps <= 0 ? "You ran out of steps."
+      : goalOpen && S.keys < GOAL_KEYS ? "The Antechamber is connected, but entering takes " + GOAL_KEYS + " keys and you have " + S.keys + "."
+      : lockedOnly ? "Every remaining door is locked and you have no keys."
+      : anyReach ? "No door is within reach of your remaining steps."
+      : "There are no doors left to open.";
+    S.over = { win: false, reason: reason };
+    addLog("Game over: " + reason, "bad");
+  }
+
+  /* ---------------- Rendering ---------------- */
+  var board = document.getElementById("board");
+  var I = 9, Z = 82, G = 13;   // cell inset, room size, half door width
+
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function cellXY(r, c) { return [(c - 1) * 100, (ROWS - r) * 100]; }
+  function wrapName(name, max) {
+    var words = name.split(" "), lines = [], cur = "";
+    words.forEach(function (w) {
+      if (!cur) cur = w;
+      else if ((cur + " " + w).length <= max) cur += " " + w;
+      else { lines.push(cur); cur = w; }
+    });
+    if (cur) lines.push(cur);
+    return lines.slice(0, 3);
+  }
+  function gainItems(rm) {
+    var out = [];
+    if (rm.steps) out.push({ n: rm.steps, ic: "i-step", cls: rm.steps < 0 ? "c-bad" : "c-steps", label: "steps" });
+    if (rm.keys) out.push({ n: rm.keys, ic: "i-key", cls: "c-keys", label: "keys" });
+    if (rm.gems) out.push({ n: rm.gems, ic: "i-gem", cls: "c-gems", label: "gems" });
+    return out;
+  }
+  function gainText(rm) {
+    return gainItems(rm).map(function (g) { return (g.n > 0 ? "+" : "−") + Math.abs(g.n) + " " + (Math.abs(g.n) === 1 ? g.label.slice(0, -1) : g.label); }).join(", ");
+  }
+  function signed(n) { return (n > 0 ? "+" : "−") + Math.abs(n); }
+  function tint(rm) {
+    if (!rm || rm.fixed) return null;
+    if (rm.steps < 0) return "var(--bad)";
+    if (rm.keys > 0) return "var(--keys)";
+    if (rm.gems > 0) return "var(--gems)";
+    if (rm.steps > 0) return "var(--steps)";
+    return null;
+  }
+
+  function wallSide(x0, y0, d, gap) {
+    var cx = x0 + Z / 2, cy = y0 + Z / 2, x1 = x0 + Z, y1 = y0 + Z;
+    var seg = { N: [x0, y0, x1, y0], S: [x0, y1, x1, y1], E: [x1, y0, x1, y1], W: [x0, y0, x0, y1] }[d];
+    if (!gap) return '<line class="wall" x1="' + seg[0] + '" y1="' + seg[1] + '" x2="' + seg[2] + '" y2="' + seg[3] + '"/>';
+    if (d === "N" || d === "S") {
+      return '<line class="wall" x1="' + x0 + '" y1="' + seg[1] + '" x2="' + (cx - G) + '" y2="' + seg[1] + '"/><line class="wall" x1="' + (cx + G) + '" y1="' + seg[1] + '" x2="' + x1 + '" y2="' + seg[1] + '"/>';
+    }
+    return '<line class="wall" x1="' + seg[0] + '" y1="' + y0 + '" x2="' + seg[0] + '" y2="' + (cy - G) + '"/><line class="wall" x1="' + seg[0] + '" y1="' + (cy + G) + '" x2="' + seg[0] + '" y2="' + y1 + '"/>';
+  }
+
+  function renderBoard() {
+    var reach = bfs(S.player), h = "";
+    var sel = S.sel;
+    var fr = frontier();
+    var selDoor = null, selRoomKey = null;
+    if (sel && sel.type === "door") selDoor = fr.filter(function (f) { return f.ek === sel.ek; })[0] || null;
+    if (sel && sel.type === "room") selRoomKey = sel.k;
+
+    for (var r = 1; r <= ROWS; r++) {
+      var y = (ROWS - r) * 100 + 54;
+      h += '<text class="rk" x="-17" y="' + y + '">' + r + '</text>';
+      h += '<text class="lk' + (LOCK[r] > 0 ? " on" : "") + '" x="508" y="' + y + '">' + Math.round(LOCK[r] * 100) + '%</text>';
+      for (var c = 1; c <= COLS; c++) {
+        if (roomAt(r, c)) continue;
+        var xy = cellXY(r, c);
+        h += '<rect class="cell-empty" x="' + (xy[0] + I) + '" y="' + (xy[1] + I) + '" width="' + Z + '" height="' + Z + '"/>';
+      }
+    }
+
+    // Cell the selected door would open into
+    if (selDoor) {
+      var tn = nbr(selDoor.r, selDoor.c, selDoor.d), txy = cellXY(tn[0], tn[1]);
+      h += '<rect class="target" x="' + (txy[0] + I) + '" y="' + (txy[1] + I) + '" width="' + Z + '" height="' + Z + '"/>';
+    }
+
+    // Rooms
+    Object.keys(S.rooms).forEach(function (k) {
+      var rm = S.rooms[k], base = rm.fixed ? null : BY_NAME[rm.name];
+      var xy = cellXY(rm.r, rm.c), x0 = xy[0] + I, y0 = xy[1] + I, cx = x0 + Z / 2;
+      var tc = tint(base);
+      var label = rm.name + (base && gainText(base) ? ", " + gainText(base) : "");
+      h += '<g class="room' + (selRoomKey === k ? " sel" : "") + '" data-room="' + k + '" tabindex="0" role="button" aria-label="' + esc(label) + '">';
+      h += '<rect class="room-hit" x="' + x0 + '" y="' + y0 + '" width="' + Z + '" height="' + Z + '"' + (tc ? ' style="fill:' + tc + ';fill-opacity:.13"' : "") + '/>';
+      if (rm.fixed === "goal") h += '<rect x="' + (x0 + 5) + '" y="' + (y0 + 5) + '" width="' + (Z - 10) + '" height="' + (Z - 10) + '" fill="none" stroke="var(--keys)" stroke-width="1" stroke-dasharray="3 3"/>';
+      SIDES.forEach(function (d) {
+        var has = rm.doors.indexOf(d) >= 0;
+        h += wallSide(x0, y0, d, has);
+        if (!has) return;
+        var n = nbr(rm.r, rm.c, d), other = inGrid(n[0], n[1]) ? roomAt(n[0], n[1]) : null;
+        var cy = y0 + Z / 2, a, b;
+        if (other && other.doors.indexOf(OPP[d]) >= 0) {
+          if (d === "N") h += '<line class="pass" x1="' + (cx - G) + '" y1="' + y0 + '" x2="' + (cx - G) + '" y2="' + (y0 - I) + '"/><line class="pass" x1="' + (cx + G) + '" y1="' + y0 + '" x2="' + (cx + G) + '" y2="' + (y0 - I) + '"/>';
+          if (d === "S") h += '<line class="pass" x1="' + (cx - G) + '" y1="' + (y0 + Z) + '" x2="' + (cx - G) + '" y2="' + (y0 + Z + I) + '"/><line class="pass" x1="' + (cx + G) + '" y1="' + (y0 + Z) + '" x2="' + (cx + G) + '" y2="' + (y0 + Z + I) + '"/>';
+          if (d === "E") h += '<line class="pass" x1="' + (x0 + Z) + '" y1="' + (cy - G) + '" x2="' + (x0 + Z + I) + '" y2="' + (cy - G) + '"/><line class="pass" x1="' + (x0 + Z) + '" y1="' + (cy + G) + '" x2="' + (x0 + Z + I) + '" y2="' + (cy + G) + '"/>';
+          if (d === "W") h += '<line class="pass" x1="' + x0 + '" y1="' + (cy - G) + '" x2="' + (x0 - I) + '" y2="' + (cy - G) + '"/><line class="pass" x1="' + x0 + '" y1="' + (cy + G) + '" x2="' + (x0 - I) + '" y2="' + (cy + G) + '"/>';
+        } else if (other) {
+          if (d === "N" || d === "S") { a = d === "N" ? y0 : y0 + Z; h += '<line class="barr" x1="' + (cx - G) + '" y1="' + a + '" x2="' + (cx + G) + '" y2="' + a + '"/>'; }
+          else { b = d === "W" ? x0 : x0 + Z; h += '<line class="barr" x1="' + b + '" y1="' + (cy - G) + '" x2="' + b + '" y2="' + (cy + G) + '"/>'; }
+        }
+      });
+      // Rarity dots
+      if (base) for (var i = 0; i < RAR[base.rarity].n; i++) h += '<circle class="dot" cx="' + (x0 + 8 + i * 5.5) + '" cy="' + (y0 + 8) + '" r="1.9"/>';
+      // Name
+      var lines = rm.fixed === "goal" ? ["Ante-", "chamber", GOAL_KEYS + " keys"] : rm.fixed === "start" ? ["Entrance", "Hall"] : wrapName(rm.name, 11);
+      var gi = base ? gainItems(base) : [];
+      var blockH = lines.length * 14 + (gi.length ? 16 : 0);
+      var ty = y0 + Z / 2 - blockH / 2 + 11;
+      lines.forEach(function (ln, j) {
+        h += '<text class="nm' + (rm.fixed ? " fixed" : "") + '" x="' + cx + '" y="' + (ty + j * 14) + '">' + esc(ln) + '</text>';
+      });
+      if (gi.length) {
+        var widths = gi.map(function (g) { return String(signed(g.n)).length * 7 + 15; });
+        var total = widths.reduce(function (s, v) { return s + v; }, 0) + (gi.length - 1) * 5;
+        var gx = cx - total / 2, gy = ty + lines.length * 14 + 2;
+        gi.forEach(function (g, j) {
+          h += '<g class="' + g.cls + '"><text class="rs" x="' + gx + '" y="' + gy + '" fill="currentColor">' + signed(g.n) + '</text>';
+          h += '<use href="#' + g.ic + '" x="' + (gx + String(signed(g.n)).length * 7 + 2) + '" y="' + (gy - 10) + '" width="12" height="12"/></g>';
+          gx += widths[j] + 5;
+        });
+      }
+      h += '</g>';
+    });
+
+    // Path preview
+    var pathKeys = null;
+    if (selDoor) pathKeys = pathTo(reach, key(selDoor.r, selDoor.c));
+    if (selRoomKey) pathKeys = pathTo(reach, selRoomKey);
+    if (pathKeys && pathKeys.length) {
+      var pts = pathKeys.map(function (k) { var p = parse(k), xy = cellXY(p[0], p[1]); return [xy[0] + 50, xy[1] + 50]; });
+      if (selDoor) { var tn2 = nbr(selDoor.r, selDoor.c, selDoor.d), t2 = cellXY(tn2[0], tn2[1]); pts.push([t2[0] + 50, t2[1] + 50]); }
+      if (pts.length > 1) h += '<polyline class="path" points="' + pts.map(function (p) { return p.join(","); }).join(" ") + '"/>';
+    }
+
+    // Doors
+    fr.forEach(function (f) {
+      var st = doorStatus(f, reach);
+      var xy = cellXY(f.r, f.c), x0 = xy[0] + I, y0 = xy[1] + I, cx = x0 + Z / 2, cy = y0 + Z / 2;
+      var rect, hit, kh;
+      if (f.d === "N") { rect = [cx - G, y0 - 4, 2 * G, 8]; }
+      if (f.d === "S") { rect = [cx - G, y0 + Z - 4, 2 * G, 8]; }
+      if (f.d === "E") { rect = [x0 + Z - 4, cy - G, 8, 2 * G]; }
+      if (f.d === "W") { rect = [x0 - 4, cy - G, 8, 2 * G]; }
+      hit = [rect[0] - 8, rect[1] - 8, rect[2] + 16, rect[3] + 16];
+      kh = [rect[0] + rect[2] / 2, rect[1] + rect[3] / 2];
+      var sealed = f.room.fixed === "goal";
+      var cls = "door" + (f.locked || sealed ? " locked" : "") + (sealed ? " sealed" : !st.ok ? " cant" : "") + (selDoor && selDoor.ek === f.ek ? " sel" : "");
+      var aria = cellName(f.r, f.c) + " " + DIR_NAME[f.d] + " door" + (f.locked ? ", locked" : "");
+      h += '<g class="' + cls + '"' + (sealed ? "" : ' data-door="' + f.ek + '" tabindex="0" role="button" aria-label="' + esc(aria) + '"') + '>';
+      h += '<rect class="hit" x="' + hit[0] + '" y="' + hit[1] + '" width="' + hit[2] + '" height="' + hit[3] + '"/>';
+      h += '<rect class="dr" x="' + rect[0] + '" y="' + rect[1] + '" width="' + rect[2] + '" height="' + rect[3] + '" rx="1.5"/>';
+      if (f.locked || sealed) h += '<circle class="kh" cx="' + kh[0] + '" cy="' + kh[1] + '" r="2"/>';
+      h += '</g>';
+    });
+
+    // Blocked doors (no room in the deck fits)
+    Object.keys(S.dead).forEach(function (ek) {
+      var parts = ek.split("|"), a = parse(parts[0]), b = parse(parts[1]);
+      var ax = cellXY(a[0], a[1]), bx = cellXY(b[0], b[1]);
+      var mx = (ax[0] + bx[0]) / 2 + 50, my = (ax[1] + bx[1]) / 2 + 50;
+      h += '<path class="dead" d="M' + (mx - 6) + ' ' + (my - 6) + 'l12 12M' + (mx + 6) + ' ' + (my - 6) + 'l-12 12"/>';
+    });
+
+    // Open button inside the empty cell the selected door leads to
+    if (selDoor) {
+      var ost = doorStatus(selDoor, reach), on = nbr(selDoor.r, selDoor.c, selDoor.d), oxy = cellXY(on[0], on[1]);
+      var bx = oxy[0] + 50, by = oxy[1] + 44;
+      var label = !ost.ok ? "Can't open" : selDoor.locked ? "Unlock" : "Open";
+      var costLine = !ost.reachable ? "no path" : !ost.ok && S.steps < ost.dist + 1 ? "need " + (ost.dist + 1) + " steps"
+        : !ost.ok ? "need a key" : (ost.dist + 1) + " step" + (ost.dist ? "s" : "") + (selDoor.locked ? " · 1 key" : "");
+      h += '<g class="open-btn' + (selDoor.locked ? " locked" : "") + (ost.ok ? "" : " off") + '" data-open="1" tabindex="0" role="button" aria-label="' + esc(label + ", " + costLine) + '">';
+      h += '<rect x="' + (bx - 34) + '" y="' + (by - 15) + '" width="68" height="28" rx="3"/>';
+      h += '<text x="' + bx + '" y="' + (by + 4) + '">' + label + '</text></g>';
+      h += '<text class="open-cost' + (ost.ok ? "" : " bad") + '" x="' + bx + '" y="' + (by + 30) + '">' + esc(costLine) + '</text>';
+    }
+
+    // Column letters
+    for (var cc = 1; cc <= COLS; cc++) h += '<text class="rk" x="' + ((cc - 1) * 100 + 50) + '" y="922">' + COL[cc] + '</text>';
+
+    // Player
+    var pp = parse(S.player), pxy = cellXY(pp[0], pp[1]);
+    var px = pxy[0] + I + Z - 11, py = pxy[1] + I + 11;
+    h += '<circle class="me-ring" cx="' + px + '" cy="' + py + '" r="7"/><circle class="me" cx="' + px + '" cy="' + py + '" r="6"/>';
+
+    board.innerHTML = h;
+  }
+
+  function icon(id, cls) { return '<svg class="ic ' + (cls || "") + '"><use href="#' + id + '"/></svg>'; }
+
+  function renderSide() {
+    document.getElementById("s-steps").textContent = S.steps;
+    document.getElementById("s-keys").textContent = S.keys;
+    document.getElementById("s-gems").textContent = S.gems;
+    document.getElementById("s-rank").textContent = S.maxRank + " / 9";
+    var deckN = 0; Object.keys(S.deck).forEach(function (k) { deckN += S.deck[k]; });
+    document.getElementById("s-deck").textContent = deckN;
+    document.getElementById("s-reward").textContent = S.reward.toFixed(3);
+    document.getElementById("s-turn").textContent = "Turn " + S.turn + " · " + S.drafted + " placed";
+    document.getElementById("seed-label").textContent = "seed " + S.cfg.seed;
+    document.getElementById("log").innerHTML = S.log.map(function (e) {
+      return '<li class="' + e.kind + '"><span>' + e.t + '</span><span>' + esc(e.msg) + '</span></li>';
+    }).join("");
+
+    var A = document.getElementById("action"), h = "";
+    var reach = bfs(S.player), sel = S.sel;
+    if (S.over) {
+      h = '<h3>' + (S.over.win ? "Goal reached" : "Game over") + '</h3><p>' + esc(S.over.reason) + '</p><div class="actions"><button class="btn" type="button" data-act="new">New game</button><button class="btn ghost" type="button" data-act="restart">Replay seed</button></div>';
+    } else if (sel && sel.type === "door") {
+      var f = frontier().filter(function (x) { return x.ek === sel.ek; })[0];
+      if (!f) { S.sel = null; return renderSide(); }
+      var st = doorStatus(f, reach), n = nbr(f.r, f.c, f.d);
+      h = '<h3>' + esc(f.room.name) + ' (' + cellName(f.r, f.c) + '), ' + DIR_NAME[f.d] + ' door</h3>';
+      h += '<p>Opening it drafts 3 floorplans for ' + cellName(n[0], n[1]) + '. Doors into this cell are locked ' + Math.round(LOCK[Math.max(f.r, n[0])] * 100) + '% of the time.</p>';
+      if (st.reachable) {
+        h += '<div class="cost"><span>' + icon("i-step", "c-steps") + ' walk ' + st.dist + ' + enter 1 = ' + (st.dist + 1) + ' steps</span>' +
+          (f.locked ? '<span>' + icon("i-key", "c-keys") + ' locked: 1 key</span>' : '<span>not locked</span>') + '</div>';
+      }
+      if (st.why) h += '<p class="why">' + esc(st.why) + '</p>';
+      if (st.ok) h += '<p>Click <b>' + (f.locked ? "Unlock" : "Open") + '</b> in the highlighted cell on the plan, or click the door again.</p>';
+      h += '<div class="actions"><button class="btn ghost" type="button" data-act="cancel">Cancel</button></div>';
+    } else if (sel && sel.type === "room") {
+      var rm = S.rooms[sel.k], base = rm.fixed ? null : BY_NAME[rm.name], dist = reach.dist[sel.k];
+      h = '<h3>' + esc(rm.name) + '</h3>';
+      if (base) h += '<p>' + SHAPE[base.shape] + (base.turn ? (base.turn === "L" ? ", turns left" : ", turns right") : "") + ' · ' + RAR[base.rarity].label + ' · gem cost ' + base.cost + (gainText(base) ? ' · gave ' + esc(gainText(base)) : '') + '</p>';
+      else if (rm.fixed === "goal") h += '<p>The goal. Connect a room to one of its doors, then spend ' + GOAL_KEYS + ' keys to walk in.</p>';
+      else h += '<p>The starting room.</p>';
+      if (sel.k === S.player) h += '<p>You are in this room.</p>';
+      else if (dist === undefined) h += '<p class="why">No path leads here yet.</p>';
+      else {
+        var isGoal = rm.fixed === "goal", canWalk = dist <= S.steps && (!isGoal || S.keys >= GOAL_KEYS);
+        h += '<div class="cost"><span>' + icon("i-step", "c-steps") + ' ' + dist + ' step' + (dist > 1 ? 's' : '') + '</span>' + (isGoal ? '<span>' + icon("i-key", "c-keys") + ' ' + GOAL_KEYS + ' keys to enter</span>' : '') + '</div>';
+        if (dist > S.steps) h += '<p class="why">Not enough steps.</p>';
+        if (isGoal && S.keys < GOAL_KEYS) h += '<p class="why">You need ' + GOAL_KEYS + ' keys and have ' + S.keys + '.</p>';
+        h += '<div class="actions"><button class="btn' + (isGoal ? " gold" : "") + '" type="button" data-act="walk"' + (canWalk ? "" : " disabled") + '>' + (rm.fixed === "goal" ? "Enter the Antechamber" : "Walk here") + '</button><button class="btn ghost" type="button" data-act="cancel">Cancel</button></div>';
+      }
+    } else {
+      var goalD = reach.dist[key(9, 3)];
+      h = '<h3>Pick a door</h3><p>Click a white door (yellow means locked) to see its cost, then click it again or use the button to open it. Click a room to walk there.</p>';
+      if (goalD !== undefined) h += '<p class="c-keys">A path to the Antechamber is open. Click it to enter (' + goalD + ' step' + (goalD > 1 ? 's' : '') + ' + ' + GOAL_KEYS + ' keys' + (S.keys < GOAL_KEYS ? '; you have ' + S.keys : '') + ').</p>';
+    }
+    A.innerHTML = h;
+  }
+
+  function miniSVG(doors, entry) {
+    var x0 = 14, y0 = 14, z = 72, g = 11, cx = 50, cy = 50, x1 = x0 + z, y1 = y0 + z, h = "";
+    SIDES.forEach(function (d) {
+      var has = doors.indexOf(d) >= 0;
+      if (d === "N" || d === "S") {
+        var yy = d === "N" ? y0 : y1;
+        h += has ? '<line class="wall" x1="' + x0 + '" y1="' + yy + '" x2="' + (cx - g) + '" y2="' + yy + '"/><line class="wall" x1="' + (cx + g) + '" y1="' + yy + '" x2="' + x1 + '" y2="' + yy + '"/>' : '<line class="wall" x1="' + x0 + '" y1="' + yy + '" x2="' + x1 + '" y2="' + yy + '"/>';
+      } else {
+        var xx = d === "W" ? x0 : x1;
+        h += has ? '<line class="wall" x1="' + xx + '" y1="' + y0 + '" x2="' + xx + '" y2="' + (cy - g) + '"/><line class="wall" x1="' + xx + '" y1="' + (cy + g) + '" x2="' + xx + '" y2="' + y1 + '"/>' : '<line class="wall" x1="' + xx + '" y1="' + y0 + '" x2="' + xx + '" y2="' + y1 + '"/>';
+      }
+    });
+    var tri = { S: "42,100 58,100 50,89", N: "42,0 58,0 50,11", W: "0,42 0,58 11,50", E: "100,42 100,58 89,50" }[entry];
+    h += '<polygon class="entry" points="' + tri + '"/>';
+    return '<svg class="mini" viewBox="0 0 100 100" aria-hidden="true">' + h + '</svg>';
+  }
+
+  function renderDraft() {
+    var ov = document.getElementById("draft");
+    if (!S.draft) { ov.hidden = true; return; }
+    var D = S.draft, t = parse(D.target), entry = OPP[D.d];
+    document.getElementById("draft-p").innerHTML = 'Choose the room for ' + cellName(t[0], t[1]) + '. The yellow triangle marks the door you enter through. You have ' + S.gems + ' gem' + (S.gems === 1 ? '' : 's') + '. A draft cannot be cancelled.';
+    document.getElementById("cards").innerHTML = D.offers.map(function (o, i) {
+      var rm = BY_NAME[o.name], can = S.gems >= o.cost;
+      var dots = new Array(RAR[rm.rarity].n + 1).join("•");
+      function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
+      // Cost = what you give up (gems to draft, steps a red room takes). Reward = what you receive.
+      var costs = [], rewards = [];
+      if (o.cost) costs.push('<span class="c-gems">' + icon("i-gem") + ' ' + plural(o.cost, "gem") + '</span>');
+      if (rm.steps < 0) costs.push('<span class="c-bad">' + icon("i-step") + ' ' + plural(-rm.steps, "step") + '</span>');
+      if (o.bypass) costs.push('<span class="muted">first slot waives ' + plural(rm.cost, "gem") + '</span>');
+      if (!o.cost && rm.steps >= 0 && !o.bypass) costs.push('<span class="muted">Free</span>');
+      if (rm.steps > 0) rewards.push('<span class="c-steps">' + icon("i-step") + ' +' + plural(rm.steps, "step") + '</span>');
+      if (rm.keys > 0) rewards.push('<span class="c-keys">' + icon("i-key") + ' +' + plural(rm.keys, "key") + '</span>');
+      if (rm.gems > 0) rewards.push('<span class="c-gems">' + icon("i-gem") + ' +' + plural(rm.gems, "gem") + '</span>');
+      if (!rewards.length) rewards.push('<span class="muted">Nothing</span>');
+      return '<button class="card" type="button" data-offer="' + i + '"' + (can ? "" : " disabled") + '>' +
+        '<span class="ck">' + (i + 1) + '</span>' + miniSVG(o.doors, entry) +
+        '<span class="cn">' + esc(rm.name) + '</span>' +
+        '<span class="cm">' + SHAPE[rm.shape] + (rm.turn ? (rm.turn === "L" ? " · turns left" : " · turns right") : "") + ' · ' + dots + ' ' + RAR[rm.rarity].label + (rm.red ? ' · red room' : '') + '</span>' +
+        '<span class="ledger">' +
+          '<span class="lrow"><span class="lbl">Cost</span><span class="vals">' + costs.join("") + '</span></span>' +
+          '<span class="lrow"><span class="lbl">Reward</span><span class="vals">' + rewards.join("") + '</span></span>' +
+          (can ? "" : '<span class="warn">Not enough gems</span>') +
+        '</span>' +
+        '</button>';
+    }).join("");
+    var wasHidden = ov.hidden;
+    ov.hidden = false;
+    if (wasHidden) { var first = ov.querySelector(".card:not(:disabled)"); if (first) first.focus(); }
+  }
+
+  function renderEnd() {
+    var ov = document.getElementById("end");
+    if (!S.over || S.endHidden) { ov.hidden = true; return; }
+    document.getElementById("end-h").textContent = S.over.win ? "You reached the Antechamber" : "Run over";
+    document.getElementById("end-p").textContent = S.over.reason;
+    var stats = [["Steps left", S.steps], ["Best rank", S.maxRank + " / 9"], ["Rooms placed", S.drafted], ["Keys used", S.keysUsed], ["Gems used", S.gemsUsed], ["AI reward", S.reward.toFixed(3)]];
+    document.getElementById("end-stats").innerHTML = stats.map(function (s) { return '<div>' + s[0] + '<b>' + s[1] + '</b></div>'; }).join("");
+    ov.hidden = false;
+  }
+
+  function render() { renderBoard(); renderSide(); renderDraft(); renderEnd(); }
+
+  /* ---------------- Input ---------------- */
+  function selectDoor(ek) {
+    if (S.over || S.draft) return;
+    if (S.sel && S.sel.type === "door" && S.sel.ek === ek) {
+      var f = frontier().filter(function (x) { return x.ek === ek; })[0];
+      if (f) openDoor(f);
+      return;
+    }
+    S.sel = { type: "door", ek: ek };
+    render();
+  }
+  function openSelected() {
+    if (!S.sel || S.sel.type !== "door") return;
+    var f = frontier().filter(function (x) { return x.ek === S.sel.ek; })[0];
+    if (f) openDoor(f);
+  }
+  function selectRoom(k) {
+    if (S.over || S.draft) return;
+    if (S.sel && S.sel.type === "room" && S.sel.k === k) { walkTo(k); return; }
+    S.sel = { type: "room", k: k };
+    render();
+  }
+
+  board.addEventListener("click", function (e) {
+    if (e.target.closest("[data-open]")) { openSelected(); return; }
+    var d = e.target.closest("[data-door]");
+    if (d) { selectDoor(d.getAttribute("data-door")); return; }
+    var r = e.target.closest("[data-room]");
+    if (r) { selectRoom(r.getAttribute("data-room")); return; }
+    if (S.sel) { S.sel = null; render(); }
+  });
+  board.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    if (e.target.closest("[data-open]")) { e.preventDefault(); openSelected(); return; }
+    var d = e.target.closest("[data-door]"), r = e.target.closest("[data-room]");
+    if (!d && !r) return;
+    e.preventDefault();
+    var id = d ? d.getAttribute("data-door") : r.getAttribute("data-room");
+    if (d) selectDoor(id); else selectRoom(id);
+    var again = board.querySelector(d ? '[data-door="' + id + '"]' : '[data-room="' + id + '"]');
+    if (again) again.focus();
+  });
+  document.getElementById("action").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-act]");
+    if (!b) return;
+    var act = b.getAttribute("data-act");
+    if (act === "cancel") { S.sel = null; render(); }
+    if (act === "open" && S.sel) { var f = frontier().filter(function (x) { return x.ek === S.sel.ek; })[0]; if (f) openDoor(f); }
+    if (act === "walk" && S.sel) walkTo(S.sel.k);
+    if (act === "new") startNew(true);
+    if (act === "restart") startNew(false);
+  });
+  document.getElementById("cards").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-offer]");
+    if (b && !b.disabled) chooseOffer(Number(b.getAttribute("data-offer")));
+  });
+  document.addEventListener("keydown", function (e) {
+    if (S.draft && /^[123]$/.test(e.key)) { chooseOffer(Number(e.key) - 1); return; }
+    if (e.key === "Escape" && !intro.hidden) { hideIntro(); return; }
+    if (e.key === "Escape" && S.sel && !S.draft) { S.sel = null; render(); }
+  });
+  document.getElementById("end-view").addEventListener("click", function () { S.endHidden = true; render(); });
+  document.getElementById("end-restart").addEventListener("click", function () { startNew(false); });
+  document.getElementById("end-new").addEventListener("click", function () { startNew(true); });
+  document.getElementById("btn-restart").addEventListener("click", function () { startNew(false); });
+  document.getElementById("btn-new").addEventListener("click", function () { startNew(true); });
+  var intro = document.getElementById("intro");
+  function showIntro() { intro.hidden = false; document.getElementById("intro-start").focus(); }
+  function hideIntro() {
+    intro.hidden = true;
+    try { localStorage.setItem("dm-intro-seen", "1"); } catch (e) {}
+  }
+  document.getElementById("btn-help").addEventListener("click", showIntro);
+  document.getElementById("intro-start").addEventListener("click", hideIntro);
+  intro.addEventListener("click", function (e) { if (e.target === intro) hideIntro(); });
+  var seen = false;
+  try { seen = localStorage.getItem("dm-intro-seen") === "1"; } catch (e) {}
+  if (!seen) showIntro();
+
+  /* ---------------- Settings ---------------- */
+  var F = function (id) { return document.getElementById(id); };
+  function fillForm(cfg) {
+    F("set-seed").value = cfg.seed; F("set-steps").value = cfg.steps; F("set-keys").value = cfg.keys; F("set-gems").value = cfg.gems;
+    ["C", "S", "U", "R"].forEach(function (k) { F("set-w" + k).value = cfg.weights[k]; });
+  }
+  function num(id, fallback, lo, hi) { var v = Math.round(Number(F(id).value)); if (!isFinite(v)) v = fallback; return Math.min(hi, Math.max(lo, v)); }
+  function readForm() {
+    var cfg = { seed: (F("set-seed").value || "").trim() || randomSeed(), steps: num("set-steps", 50, 1, 999), keys: num("set-keys", 2, 0, 99), gems: num("set-gems", 2, 0, 99), weights: {} };
+    ["C", "S", "U", "R"].forEach(function (k) { cfg.weights[k] = num("set-w" + k, DEFAULTS.weights[k], 0, 1000); });
+    return cfg;
+  }
+  function startNew(fresh) {
+    var cfg = readForm();
+    if (fresh) cfg.seed = randomSeed();
+    else cfg.seed = S.cfg.seed;
+    fillForm(cfg);
+    newGame(cfg);
+  }
+  F("settings").addEventListener("submit", function (e) { e.preventDefault(); var cfg = readForm(); fillForm(cfg); newGame(cfg); });
+  F("btn-defaults").addEventListener("click", function () {
+    var cfg = JSON.parse(JSON.stringify(DEFAULTS)); cfg.seed = F("set-seed").value || randomSeed(); fillForm(cfg);
+  });
+
+  F("lock-table").innerHTML = '<tr><th>Rank</th>' + [1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (r) { return '<th>' + r + '</th>'; }).join("") + '</tr>' +
+    '<tr><th>Locked</th>' + [1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (r) { return '<td>' + Math.round(LOCK[r] * 100) + '%</td>'; }).join("") + '</tr>';
+
+  /* ---------------- Boot ---------------- */
+  function start(data) {
+    if (data && data.S && data.S.rooms) { S = data.S; fillForm(S.cfg); render(); return; }
+    var cfg = JSON.parse(JSON.stringify(DEFAULTS));
+    cfg.seed = randomSeed();
+    fillForm(cfg);
+    newGame(cfg);
+  }
+  var hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) hot.snapshot(function () { return { S: S }; });
+  if (hot && hot.ready) hot.ready(start); else start(hot && hot.data ? hot.data : {});
+})();
+</script>

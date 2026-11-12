@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.pytest_cache/
+# not ours to publish (instructor handout, copied wiki/Reddit text)
+status.pdf
+drafting.md
+locked doors.md
