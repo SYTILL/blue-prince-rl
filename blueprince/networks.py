@@ -12,7 +12,7 @@ import torch as th
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from torch import nn
 
-from .env import BOARD_SIZE, CELL_FEATURES, OBS_SIZE
+from .env import BOARD_SIZE, CELL_FEATURES
 from .game import COLS, ROWS
 
 
@@ -26,7 +26,8 @@ class BoardCNN(BaseFeaturesExtractor):
             in_ch = channels
         self.conv = nn.Sequential(*convs)
         self.board_fc = nn.Sequential(nn.Flatten(), nn.Linear(channels * ROWS * COLS, board_dim), nn.ReLU())
-        self.extra_fc = nn.Sequential(nn.Linear(OBS_SIZE - BOARD_SIZE, extra_dim), nn.ReLU())
+        obs_size = observation_space.shape[0]      # version 1 or 2; the board block is the same
+        self.extra_fc = nn.Sequential(nn.Linear(obs_size - BOARD_SIZE, extra_dim), nn.ReLU())
         # coordinate channels: zero padding alone does not tell a cell where it is
         rank = th.linspace(0, 1, ROWS).view(ROWS, 1).expand(ROWS, COLS)
         col = th.linspace(0, 1, COLS).view(1, COLS).expand(ROWS, COLS)

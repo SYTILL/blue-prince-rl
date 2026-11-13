@@ -57,6 +57,31 @@ Findings
   that measure depends on the seed as much as on the network.
 - Validation best again overstates the test result (12.3% → 8.9%).
 
+Significance check (2026-11-12, paired on the same 1000 test seeds, McNemar
+z = (wins only B − wins only A) / √(wins only A + wins only B)):
+
+| A vs B | Wins only A | Wins only B | z |
+|---|---:|---:|---:|
+| `ppo-base` vs `ppo-cnn` | 63 | 77 | 1.18 |
+| `ppo-base` vs `ppo-cnn-s1` | 62 | 77 | 1.27 |
+| `ppo-curriculum` vs `ppo-cnn` | 61 | 79 | 1.52 |
+| `ppo-curriculum` vs `ppo-cnn-s1` | 63 | 82 | 1.58 |
+| `ppo-cnn` vs `ppo-cnn-s1` | 71 | 72 | 0.08 |
+
+No single pair reaches z = 1.96 (5% level). Pooling both runs per network
+(179 vs 146 wins in 2000 games) gives about z = 1.9: borderline. Only two
+training runs per network, so run-to-run variation is not measured well.
+Conclusion: the CNN is at best a small gain, not shown to be real, and costs
+3.3× the training time.
+
+The two CNN seeds win almost the same number of games (89 vs 90) but share only
+18 of them. Which games a policy wins is mostly luck of the draws, not a stable
+skill; the policies have not learned a reliable way to win.
+
+Decision (default): keep the MLP for Exp 3, because it is 3.3× faster and the
+CNN gain is not established. The bottleneck looks like missing information
+(D10 gaps), not the network.
+
 Seed meaning: `--seed` sets the network's initial weights, the training games
 each environment draws, and PPO's action sampling. Validation and test seeds are
 the same for every run. Exp 1 used seed 0 only, so an MLP run with seed 1 is
@@ -69,6 +94,65 @@ blueprint features. Training is about 3.3× slower than the MLP on CPU
 (about 235 vs 790 steps/s per run with two runs side by side), so each run takes
 about 3–3.5 hours. Started 17:33; settings otherwise identical to Exp 1
 (8 envs, 6 torch threads per run).
+
+## 2026-11-12 · Exp 3: hyperparameters and observation v2 (MLP, running)
+
+The user chose to continue with the MLP (3.3× faster than the CNN). Two
+questions, run side by side:
+
+**3a. Do the PPO settings matter?** Version 1 observation, one change at a time
+from the Exp 1 settings (all seed 0 unless named), plus the missing second MLP seed.
+
+| Run | Change | Best val (at) | Test win | Test avg rank |
+|---|---|---:|---:|---:|
+| `ppo-base-s1` | none, seed 1 | | | |
+| `ppo-ent03` | entropy 0.01 → 0.03 (more exploration) | | | |
+| `ppo-ent003` | entropy 0.01 → 0.003 (less exploration) | | | |
+| `ppo-lr1e4` | learning rate 3e-4 → 1e-4 | | | |
+
+**3b. Does the missing information matter?** Observation version 2 (867 numbers,
+`DESIGN.md` section 3): goal distance and step slack, keys short, usable doors,
+key/step/gem rooms left in the deck, and per offer what placing it does (new,
+joined and walled doors, joins the goal, doors left on the board, rooms to the
+goal, lock chance). Exp 1 settings otherwise.
+
+| Run | Setup | Best val (at) | Test win | Test avg rank |
+|---|---|---:|---:|---:|
+| `ppo-obs2` | obs v2, seed 0 | | | |
+| `ppo-obs2-s1` | obs v2, seed 1 | | | |
+
+Settings: 8 envs, 3 torch threads per run, 3M steps. Five runs started together
+at about 22:00 on 2026-11-12. `ppo-obs2` failed at start with a MemoryError (six
+runs at once exhaust the Windows commit memory: each run is 9 Python processes
+that load torch); it is queued to start when the first 3a run finishes.
+
+Expectation: if the PPO settings were the bottleneck, one of the 3a runs should
+move clearly above 7–9%; if missing information is, 3b should.
+
+**Stopped by the user (2026-11-12, about 23:00)** before any run reached 3M
+steps; `ppo-obs2` (seed 0) was never started. Models up to the stop point are in
+each run's folder (`model.zip` from the last evaluation, `best_model.zip`), and
+`config.json` says `stopped`. Not evaluated on the test seeds.
+
+Interim comparison at the same point (up to 1.2M steps). Training win rate is
+over the last 1000 training games, so it is less noisy than validation (300 games):
+
+| Run | Stopped at | Best val up to 1.2M | Train win at 1.2M |
+|---|---:|---:|---:|
+| `ppo-base` (Exp 1) | 3M | 3.7% | 3.2% |
+| `ppo-cnn` / `ppo-cnn-s1` (Exp 2) | 3M | 5.0% / 7.3% | 3.0% / 4.2% |
+| `ppo-base-s1` | 1.2M | 5.7% | 2.7% |
+| `ppo-ent03` | 1.5M | 4.7% | 2.4% |
+| `ppo-ent003` | 1.4M | 4.7% | 2.4% |
+| `ppo-lr1e4` | 1.4M | 5.3% | 4.4% |
+| `ppo-obs2-s1` | 1.2M | **9.0%** | **8.5%** |
+
+Early read (one seed, half-trained, not a test result): observation v2 learns
+faster than every v1 run, about twice the training win rate at 1.2M steps. The
+PPO setting changes stay within the v1 band. This points to missing information
+as the bottleneck (D21), but needs the full runs, a second seed and the test
+seeds to confirm. To resume: rerun with the same commands (a new run starts from
+scratch; there is no resume from a checkpoint).
 
 ## Next candidates
 

@@ -204,3 +204,67 @@ def test_board_cnn_sees_cells_in_place():
     assert image[0, 0, 8, 2] == 1                           # Antechamber at rank 9, column C
     net = BoardCNN(env.observation_space)
     assert net(torch.as_tensor(obs[None])).shape == (1, net.features_dim)
+
+
+# ---- observation version 2 (Exp 3)
+
+def test_obs_v2_extends_v1():
+    from blueprince.env import OBS_SIZE_V2, encode_observation
+    v1, v2 = BluePrinceEnv(), BluePrinceEnv(obs_version=2)
+    assert v2.observation_space.shape == (OBS_SIZE_V2,)
+    for seed in range(20):
+        o1, o2 = v1.reset(seed=seed)[0], v2.reset(seed=seed)[0]
+        rng = random.Random(seed)
+        while True:
+            assert np.array_equal(o2[:OBS_SIZE], o1) and v2.observation_space.contains(o2)
+            if v1.game.over or v1.game.truncated:
+                break
+            a = rng.choice(v1.game.legal_actions())
+            o1, o2 = v1.step(a)[0], v2.step(a)[0]
+
+
+def test_obs_v2_plan_features():
+    from blueprince.env import PLAN_OFFSET, encode_observation, rooms_to_goal
+    assert rooms_to_goal((8, 3)) == 1 and rooms_to_goal((2, 3)) == 7 and rooms_to_goal((9, 1)) == 2
+    game = Game(0)
+    p = encode_observation(game, 2)[PLAN_OFFSET:]
+    # start: Entrance Hall (1, 3) with doors W, N, E; best is N to (2, 3): 0 walk + 7 rooms + 1 step in
+    assert p[0] == 0 and p[2] == pytest.approx(8 / 20) and p[3] == pytest.approx((50 - 8) / 50)
+    assert p[4] == pytest.approx(7 / 10) and p[5] == pytest.approx(1 / 3) and p[6] == pytest.approx(3 / 10)
+    assert p[8] == pytest.approx(sum(1 for r in ROOMS if r.keys > 0) / 10)
+
+
+def test_obs_v2_offer_features_match_placement():
+    from blueprince.env import OFFER_PLAN_FEATURES, OFFER_PLAN_OFFSET, encode_observation
+    for seed in range(30):
+        game, rng = Game(seed), random.Random(seed)
+        while not (game.over or game.truncated):
+            if game.phase == PHASE_DRAFT:
+                obs = encode_observation(game, 2)
+                for slot, offer in enumerate(game.draft.offers):
+                    if game.gems < offer.cost:
+                        continue
+                    f = obs[OFFER_PLAN_OFFSET + slot * OFFER_PLAN_FEATURES:][:OFFER_PLAN_FEATURES]
+                    after = Game(seed)
+                    for a in game.actions:
+                        after.step(a)
+                    after.step(N_DOOR_ACTIONS + slot)
+                    target = game.draft.target
+                    assert f[0] + f[1] + f[2] == pytest.approx((len(offer.doors) - 1) / 3)
+                    open_after = sum(1 for r, c, d, _, _ in after.frontier())
+                    assert f[4] == pytest.approx(min(1.0, open_after / 10))
+                    new = sum(1 for r, c, d, _, _ in after.frontier() if (r, c) == target)
+                    assert f[0] == pytest.approx(new / 3)
+            game.step(rng.choice(game.legal_actions()))
+
+
+def test_ppo_agent_reads_obs_version_from_model():
+    pytest.importorskip("sb3_contrib")
+    from sb3_contrib import MaskablePPO
+    from blueprince.agents import PPOAgent
+    for version in (1, 2):
+        model = MaskablePPO("MlpPolicy", BluePrinceEnv(obs_version=version), n_steps=64, batch_size=64,
+                            seed=0, device="cpu")
+        agent = PPOAgent(model=model)
+        assert agent.obs_version == version
+        assert len(evaluate(agent, range(3))) == 3

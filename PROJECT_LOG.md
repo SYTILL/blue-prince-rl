@@ -22,6 +22,8 @@ section. Related files:
 | 2026-11-11 | Weeks 8–9: beta | Experiment 2 started: CNN board encoder, two seeds |
 | 2026-11-11 23:00 | Weeks 8–9: beta | Exp 2 at 2.8M of 3M steps: best validation 12.0% / 10.7%, recent values in the same band as the MLP. Test evaluation pending. Room colour discussed and not added (see D19) |
 | 2026-11-11 23:10 | Weeks 8–9: beta | Exp 2 done: CNN 8.9% / 9.0% on the test seeds vs MLP 7.1–7.5%. Code and results pushed to GitHub for the team (D20) |
+| 2026-11-12 | Weeks 8–9: beta | Exp 2 significance check (not significant). Observation v2 implemented (219 tests). Exp 3 started: PPO setting changes (3a) and observation v2 (3b), MLP | 
+| 2026-11-12 23:00 | Weeks 8–9: beta | Exp 3 stopped by the user at 1.2–1.5M of 3M steps. Interim: obs v2 trains about twice as well as any v1 run at 1.2M (train win 8.5% vs 2.4–4.4%); PPO setting changes no different from v1 |
 
 ---
 
@@ -169,6 +171,24 @@ drawing the board in the dashboard and report figures (no effect on agents;
 needs the colours of all 99 rooms, which `rooms.py` lacks). Waiting for the team
 to say which, if either.
 
+**D21. Continue with the MLP; test PPO settings and observation v2 together** (user, 2026-11-12)
+After Exp 2 the CNN gain was small and not significant, and it trains 3.3×
+slower. The user asked whether tuning PPO settings could help a lot. Expected
+answer: probably not much, because training had plateaued and the rule-based
+agent's edge comes from values it computes (goal distance, step feasibility,
+whether a room closes the board) that PPO does not observe. Both were tested
+side by side with the MLP (Exp 3a: entropy 0.03 / 0.003, learning rate 1e-4,
+second seed; Exp 3b: observation v2).
+
+**D22. Observation v2 appended to v1, versioned** (default)
+Options: replace the observation, or append features and keep a version switch.
+Chosen: append (`obs_version=2`, 867 numbers). Version 1 models still load and
+evaluate (the agent reads the version from the model's input size), and the
+CNN's board block is unchanged. The added features are computed from the state
+(no hidden information): lower bounds on rooms and steps to the goal, keys short,
+deck contents by reward, and per-offer placement effects. Room colour is still
+left out (D19).
+
 ### Tooling
 
 **D16. Python virtual environment in `project/.venv`** (user)
@@ -234,7 +254,9 @@ failure (routes, key use, detours), as the proposal's qualitative analysis says.
 
 Ordered by expected value; see `EXPERIMENTS.md` for detail.
 
-1. CNN board encoder (Exp 2, done: about +1.5 points over the MLP, small).
+1. CNN board encoder (Exp 2, done: about +1.5 points over the MLP; paired
+   McNemar z 1.2–1.6 per pair, not significant; MLP kept for Exp 3 because it is
+   3.3× faster).
 2. Observation additions: key-giving rooms left in the deck, rooms still needed
    to reach the goal, keys still needed.
 3. Reward shaping for key saving and walking cost, kept well below the win reward.

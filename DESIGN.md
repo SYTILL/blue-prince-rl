@@ -117,11 +117,48 @@ A flat `float32` vector of length **834**, values in `[-1, 1]`. Built by
 | 11–13 | steps / 10, keys / 3, gems / 3 granted |
 | 14–18 | shape one-hot (D, S, L, T, X) |
 
-This is a first version for the RL work to start from. Known gaps: it does not
-say which individual rooms are still in the deck, and the board is flat rather
-than a 9×5 image. To change it, wrap the environment
-(`gymnasium.ObservationWrapper`) or edit `encode_observation`; the rules engine
-does not depend on it.
+This is version 1, used by Exp 1–2. Known gaps: it does not say which individual
+rooms are still in the deck, and the board is flat rather than a 9×5 image. To
+change it, wrap the environment (`gymnasium.ObservationWrapper`) or edit
+`encode_observation`; the rules engine does not depend on it.
+
+### Version 2 (Exp 3): 867 numbers
+
+`BluePrinceEnv(obs_version=2)` or `train.py --obs 2`. The first 834 numbers are
+exactly version 1; 33 computed features follow. They hand the agent what the
+rule-based agent computes for itself. `PPOAgent` reads the version from the
+model's input size, so version 1 models keep working.
+
+"Rooms still needed" from an empty cell = 1 + Manhattan distance to the nearest
+cell beside an Antechamber door ((9,2), (8,3), (9,4)); a lower bound that ignores
+walls and shapes.
+
+**Plan: 12 features** (offset 834)
+
+| Feature | Meaning |
+|---|---|
+| 0–1 | Antechamber reachable on foot; walking distance to it / 20 |
+| 2 | fewest steps to win through an open door: walk + rooms still needed + 1 (or the walk if connected) / 20 |
+| 3 | step slack: (steps − feature 2) / 50 |
+| 4 | fewest rooms still needed / 10 |
+| 5 | keys short of the 3 needed: (3 − keys) / 3 |
+| 6–7 | usable doors / 10, reachable locked doors / 10 |
+| 8–11 | rooms in the deck giving keys / 10, steps / 10, gems / 10; total keys in the deck / 20 |
+
+**Offer placement: 3 slots × 7 features** (offset 846; zero in the door phase)
+
+| Feature | Meaning |
+|---|---|
+| 0 | new open doors (to an empty cell) / 3 |
+| 1 | doors that join a neighbour, not counting the entry door / 3 |
+| 2 | doors walled off by a neighbour with no matching door / 3 |
+| 3 | joins the Antechamber |
+| 4 | unopened doors on the board after placing it / 10 (0 = the board is closed) |
+| 5 | rooms still needed from its best new door / 10 (0 if it joins the goal, 1 if no new door) |
+| 6 | average lock chance of its new doors |
+
+Encoding version 2 slows the environment by about 20% (2250 → 1770 steps/s
+with random actions).
 
 ## 4. Reward and episode end
 

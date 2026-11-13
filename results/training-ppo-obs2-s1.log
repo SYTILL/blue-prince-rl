@@ -1,0 +1,17 @@
+Run ppo-obs2-s1: baselines on 300 validation seeds...
+  random 0.0%  rule 22.0%
+[        8] val win 0.0%  val rank 3.81  (best 0.0%, 16s)
+[  100,008] train win 0.5%  val win 0.7%  val rank 7.08  (best 0.7%, 253s)
+[  200,008] train win 1.7%  val win 3.0%  val rank 7.35  (best 3.0%, 494s)
+[  300,008] train win 3.0%  val win 1.3%  val rank 7.89  (best 3.0%, 750s)
+[  400,008] train win 1.4%  val win 4.7%  val rank 7.67  (best 4.7%, 1010s)
+[  500,008] train win 2.4%  val win 2.7%  val rank 7.70  (best 4.7%, 1246s)
+[  600,008] train win 4.3%  val win 6.0%  val rank 7.47  (best 6.0%, 1472s)
+[  700,008] train win 5.3%  val win 5.3%  val rank 7.47  (best 6.0%, 1694s)
+[  800,008] train win 4.5%  val win 7.0%  val rank 7.59  (best 7.0%, 1938s)
+[  900,008] train win 4.8%  val win 7.7%  val rank 7.28  (best 7.7%, 2168s)
+[1,000,008] train win 5.2%  val win 9.0%  val rank 7.43  (best 9.0%, 2406s)
+[1,100,008] train win 7.7%  val win 8.0%  val rank 7.42  (best 9.0%, 2625s)
+[1,200,008] train win 8.5%  val win 9.0%  val rank 7.43  (best 9.0%, 2868s)
+Traceback (most recent call last):
+  File "C:\Users\junsa\AppData\Local\Programs\Python\Python312\Lib\multiprocessing\connection.py", line 328, in _recv_bytes

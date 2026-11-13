@@ -1,0 +1,15 @@
+Run ppo-base-s1: baselines on 300 validation seeds...
+  random 0.0%  rule 22.0%
+[        8] val win 0.0%  val rank 3.39  (best 0.0%, 7s)
+[  100,008] train win 0.1%  val win 0.7%  val rank 7.07  (best 0.7%, 160s)
+[  200,008] train win 0.9%  val win 1.0%  val rank 7.33  (best 1.0%, 395s)
+[  300,008] train win 1.2%  val win 0.0%  val rank 7.59  (best 1.0%, 711s)
+[  400,008] train win 1.7%  val win 1.0%  val rank 7.52  (best 1.0%, 1013s)
+[  500,008] train win 2.5%  val win 1.7%  val rank 7.50  (best 1.7%, 1306s)
+[  600,008] train win 1.7%  val win 3.7%  val rank 7.46  (best 3.7%, 1568s)
+[  700,008] train win 3.2%  val win 2.7%  val rank 7.76  (best 3.7%, 1831s)
+[  800,008] train win 2.8%  val win 4.0%  val rank 7.73  (best 4.0%, 2090s)
+[  900,008] train win 2.7%  val win 5.7%  val rank 7.80  (best 5.7%, 2364s)
+[1,000,008] train win 3.3%  val win 4.0%  val rank 7.63  (best 5.7%, 2631s)
+[1,100,008] train win 3.0%  val win 3.7%  val rank 7.67  (best 5.7%, 2894s)
+[1,200,008] train win 2.7%  val win 3.0%  val rank 7.45  (best 5.7%, 3179s)

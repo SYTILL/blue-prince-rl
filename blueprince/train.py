@@ -159,6 +159,8 @@ def main(argv=None):
                                                "(default 256,256 for mlp, 256 for cnn)")
     p.add_argument("--cnn-channels", type=int, default=64)
     p.add_argument("--cnn-layers", type=int, default=3)
+    p.add_argument("--obs", type=int, choices=(1, 2), default=1,
+                   help="observation version: 1 = 834 numbers (Exp 1-2); 2 = adds goal, deck and offer-placement features")
     args = p.parse_args(argv)
     args.timesteps = int(args.timesteps)
     if args.net is None:
@@ -187,7 +189,7 @@ def main(argv=None):
     print("  " + "  ".join(f"{k} {100 * v['win_rate']:.1f}%" for k, v in baselines.items()), flush=True)
 
     vec_cls = SubprocVecEnv if args.n_envs > 1 else DummyVecEnv
-    env = make_vec_env(BluePrinceEnv, n_envs=args.n_envs, seed=args.seed, env_kwargs={"config": target}, vec_env_cls=vec_cls)
+    env = make_vec_env(BluePrinceEnv, n_envs=args.n_envs, seed=args.seed, env_kwargs={"config": target, "obs_version": args.obs}, vec_env_cls=vec_cls)
     net = [int(x) for x in args.net.split(",") if x]
     policy_kwargs = {"net_arch": {"pi": net, "vf": net}}
     if args.policy == "cnn":

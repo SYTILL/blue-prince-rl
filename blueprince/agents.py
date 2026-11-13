@@ -196,16 +196,19 @@ class PPOAgent:
                 path = models[0][1]
             from sb3_contrib import MaskablePPO      # imported here so the baselines do not need torch
             model = MaskablePPO.load(path, device="cpu")
+        from .env import obs_version
         self.model = model
         self.path = path
         self.deterministic = deterministic
+        self.obs_version = obs_version(model.observation_space.shape[0])   # older models use version 1
 
     def reset(self, seed):
         pass
 
     def act(self, env):
         from .env import encode_observation
-        action, _ = self.model.predict(encode_observation(env.game), action_masks=env.action_masks(),
+        obs = encode_observation(env.game, self.obs_version)
+        action, _ = self.model.predict(obs, action_masks=env.action_masks(),
                                        deterministic=self.deterministic)
         return int(action)
 
