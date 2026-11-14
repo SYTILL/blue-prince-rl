@@ -95,7 +95,7 @@ blueprint features. Training is about 3.3× slower than the MLP on CPU
 about 3–3.5 hours. Started 17:33; settings otherwise identical to Exp 1
 (8 envs, 6 torch threads per run).
 
-## 2026-11-12 · Exp 3: hyperparameters and observation v2 (MLP, running)
+## 2026-11-12 · Exp 3: hyperparameters and observation v2 (MLP)
 
 The user chose to continue with the MLP (3.3× faster than the CNN). Two
 questions, run side by side:
@@ -118,8 +118,9 @@ goal, lock chance). Exp 1 settings otherwise.
 
 | Run | Setup | Best val (at) | Test win | Test avg rank |
 |---|---|---:|---:|---:|
-| `ppo-obs2` | obs v2, seed 0 | | | |
-| `ppo-obs2-s1` | obs v2, seed 1 | | | |
+| `ppo-obs2` | obs v2, seed 0 | 14.3% (2.8M) | **11.4%** | 7.27 |
+| `ppo-obs2-s1` | obs v2, seed 1 | stopped at 1.2M (9.0% at 1.0M) | | |
+| `ppo-obs2-s1b` | obs v2, seed 1, rerun from scratch | 14.7% (2.7M) | **13.0%** | 7.78 |
 
 Settings: 8 envs, 3 torch threads per run, 3M steps. Five runs started together
 at about 22:00 on 2026-11-12. `ppo-obs2` failed at start with a MemoryError (six
@@ -154,16 +155,95 @@ as the bottleneck (D21), but needs the full runs, a second seed and the test
 seeds to confirm. To resume: rerun with the same commands (a new run starts from
 scratch; there is no resume from a checkpoint).
 
+**Rerun of 3b only (user, 2026-11-13 18:00).** `ppo-obs2` (seed 0) and
+`ppo-obs2-s1b` (seed 1, new name because runs cannot resume) started side by
+side, 3M steps, 8 envs, 6 torch threads each. The 3a runs are not rerun: at
+1.2M steps they were no better than the defaults.
+
+**Result of 3b (2026-11-13 19:20).** Both runs finished in about 67 minutes.
+
+Test loss causes (out of steps / out of keys / goal keys / no doors):
+`ppo-obs2` 12.8 / 23.0 / 22.2 / 30.6%; `ppo-obs2-s1b` 18.1 / 26.7 / 22.4 / 19.8%.
+Rooms drafted 18.4 and 19.1. Saved test runs: `results/runs/test-ppo-obs2`,
+`results/runs/test-ppo-obs2-s1b`.
+
+Paired McNemar test on the 1000 test seeds (wins only by the older model /
+wins only by v2, z):
+
+| Older model | vs `ppo-obs2` (114 wins) | vs `ppo-obs2-s1b` (130 wins) |
+|---|---:|---:|
+| `ppo-base` MLP v1 (75) | 60 / 99, z 3.09 | 58 / 113, z 4.21 |
+| `ppo-curriculum` MLP v1 (71) | 57 / 100, z 3.43 | 54 / 113, z 4.57 |
+| `ppo-cnn` CNN v1 (89) | 67 / 92, z 1.98 | 66 / 107, z 3.12 |
+| `ppo-cnn-s1` CNN v1 (90) | 75 / 99, z 1.82 | 69 / 109, z 3.00 |
+
+The two v2 seeds do not differ significantly from each other (87 / 103, z 1.16)
+and share 27 wins.
+
+Findings
+- Observation v2 raises the MLP from 7.1–7.5% to 11.4–13.0% on the test seeds,
+  about +5 points, significant on every pairing with the MLP v1 runs (z 3.1–4.6).
+  This is the first change that clearly helps.
+- It is also better than the CNN with the old observation (z 1.8–3.1), while
+  training 3.3× faster. Information mattered more than the network.
+- With the setting changes of 3a showing no gain at 1.2M steps, this supports
+  D21: the bottleneck was missing information, not the PPO settings.
+- Still about half the rule-based agent's 24.4%. Key-related losses (out of keys
+  plus goal keys) remain the largest group at 45–49%, and v2 still drafts fewer
+  rooms (18–19) than the rule-based agent (24).
+
+## 2026-11-13 · Exp 4: longer training of observation v2 (stopped at 6.6M)
+
+Question: were the observation v2 runs still improving at 3M steps? Both reached
+their best validation near the end (2.7–2.8M).
+
+`ppo-obs2` and `ppo-obs2-s1b` resumed from their 3M `model.zip` with the new
+`--resume` option (D23) and train to 10M steps in total. Settings are unchanged;
+the environments are seeded with seed + 10000 so the training games are new.
+Started 20:04, side by side, 6 torch threads each. Expect about 2.5–3 hours.
+
+The 3M best models evaluated in Exp 3b are kept as `best_model_3M.zip` (copied
+before the resume). Test them with
+`--ppo-model results/training/<run>/best_model_3M.zip`.
+
+Stopped by the user at 21:29, at 6.6M steps each, because validation had
+flattened. `model.zip` holds the 6.6M weights, so `--resume <run> --timesteps 10e6`
+can still finish them.
+
+Mean validation win rate per million steps (each evaluation is 300 games, so a
+single value moves about ±2 points by chance):
+
+| Steps | `ppo-obs2` | `ppo-obs2-s1b` |
+|---|---:|---:|
+| 1–2M | 7.8% | 8.6% |
+| 2–3M | 10.6% | 11.1% |
+| 3–4M | 12.2% | 11.7% |
+| 4–5M | 11.5% | 12.5% |
+| 5–6.6M | 13.1% | 12.0% |
+
+| Run | Best val (at) | Test win | Test avg rank |
+|---|---:|---:|---:|
+| `ppo-obs2` → 6.6M | 16.7% (5.0M, again at 6.6M) | not run | |
+| `ppo-obs2-s1b` → 6.6M | 15.7% (5.7M) | not run | |
+
+Findings:
+- The gain stops at about 3M steps. From 3M to 6.6M the mean stays near 12%,
+  for both seeds. More than double the training gave almost nothing.
+- The higher best values (16.7%, 15.7%) are most likely the max of many noisy
+  300-game evaluations, not real progress. The test seeds would tell; the new
+  `best_model.zip` files have not been tested yet.
+- So with this observation and reward, the MLP is near its limit. Together with
+  Exp 2 and 3a this points again at the information and the reward, not at
+  training length, the network or the PPO settings.
+
 ## Next candidates
 
-1. **Observation additions**: count of key-giving (and step-giving) rooms left in
-   the deck; fewest rooms still needed to reach the Antechamber; keys still needed
-   for the goal (3 + locked doors on the best path); and per-offer consequences of
-   placing it (new open doors, joins, walled doors, connects to the Antechamber,
-   open doors left). The draft offers currently give only door directions.
+1. ~~**Observation additions**~~: done as observation v2 (Exp 3b). Still open:
+   keys needed for the locks on the best route.
 2. **Reward shaping**: nothing rewards keeping 3 keys for the end or penalises
    walking. Options: small penalty per step walked, bonus for reaching rank 8–9
-   with 3+ keys. Keep the total well below the win reward.
+   with 3+ keys. Keep the total well below the win reward. Targets the key losses
+   (45–49% of games for observation v2).
 3. **Policy head that follows the board**: door actions are per cell and side, so
    a convolutional head (4 logits per cell) instead of a dense head.
-4. **Longer training** (10M+ steps) and more seeds per setup.
+4. ~~**Longer training**~~: Exp 4, flat after 3M. More seeds per setup is still useful.

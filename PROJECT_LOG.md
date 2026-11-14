@@ -24,6 +24,10 @@ section. Related files:
 | 2026-11-11 23:10 | Weeks 8–9: beta | Exp 2 done: CNN 8.9% / 9.0% on the test seeds vs MLP 7.1–7.5%. Code and results pushed to GitHub for the team (D20) |
 | 2026-11-12 | Weeks 8–9: beta | Exp 2 significance check (not significant). Observation v2 implemented (219 tests). Exp 3 started: PPO setting changes (3a) and observation v2 (3b), MLP | 
 | 2026-11-12 23:00 | Weeks 8–9: beta | Exp 3 stopped by the user at 1.2–1.5M of 3M steps. Interim: obs v2 trains about twice as well as any v1 run at 1.2M (train win 8.5% vs 2.4–4.4%); PPO setting changes no different from v1 |
+| 2026-11-13 18:00 | Weeks 8–9: beta | Only observation v2 rerun (user): `ppo-obs2` and `ppo-obs2-s1b`, two seeds, 3M steps |
+| 2026-11-13 19:20 | Weeks 8–9: beta | Exp 3b done: observation v2 wins 11.4% / 13.0% on the test seeds vs 7.1–7.5% for MLP v1 (McNemar z 3.1–4.6) and 8.9–9.0% for the CNN. First clear gain |
+| 2026-11-13 20:04 | Weeks 8–9: beta | `--resume` added to training. Exp 4: both observation v2 runs continue from 3M to 10M steps |
+| 2026-11-13 21:29 | Weeks 8–9: beta | Exp 4 stopped by the user at 6.6M steps: validation flat near 12% after 3M for both seeds. Longer training does not help; next is reward shaping for keys |
 
 ---
 
@@ -189,6 +193,18 @@ CNN's board block is unchanged. The added features are computed from the state
 deck contents by reward, and per-offer placement effects. Room colour is still
 left out (D19).
 
+**D23. Longer training by resuming, not restarting** (user asked for longer training and for a way to continue runs, 2026-11-13)
+Options:
+- (a) Train new 10M runs from scratch: about 3.5 hours, and they repeat the first 3M steps.
+- (b) Add `--resume` and continue the 3M runs to 10M.
+
+Chosen: (b). Weights and optimizer state are loaded from `model.zip`, and the step count and logs continue. The environments get new seeds, so training games do not repeat.
+
+Caveats for the report:
+- The rollout buffer starts empty at the resume point.
+- The recent training win rate restarts its 1000-game window.
+- Neither matters for PPO, which collects a fresh rollout every update.
+
 ### Tooling
 
 **D16. Python virtual environment in `project/.venv`** (user)
@@ -218,6 +234,8 @@ the local folder.
 | PPO MLP `ppo-curriculum` | 7.1% | 7.54 | 19.1% | 26.9% | 20.1% | 26.8% |
 | PPO CNN `ppo-cnn` (seed 0) | 8.9% | 7.61 | 10.4% | 33.5% | 23.5% | 23.7% |
 | PPO CNN `ppo-cnn-s1` (seed 1) | 9.0% | 7.75 | 19.5% | 30.5% | 20.1% | 20.9% |
+| PPO MLP obs v2 `ppo-obs2` (seed 0) | 11.4% | 7.27 | 12.8% | 23.0% | 22.2% | 30.6% |
+| PPO MLP obs v2 `ppo-obs2-s1b` (seed 1) | 13.0% | 7.78 | 18.1% | 26.7% | 22.4% | 19.8% |
 
 Rule-based with 5 keys and 5 gems at the start: 58.6% (random still 0.0%).
 
@@ -225,7 +243,7 @@ Proposal hypotheses
 - Random wins almost never: confirmed (0 of 1000).
 - Rule-based beats random: confirmed.
 - PPO beats random: confirmed (7–9% and highest rank 7.5–7.8 vs 3.7).
-- PPO matches or beats rule-based: not yet (9% vs 24%).
+- PPO matches or beats rule-based: not yet (best 13% vs 24%).
 
 Sanity cases: all four pass (`DESIGN.md` section 7).
 
@@ -257,8 +275,10 @@ Ordered by expected value; see `EXPERIMENTS.md` for detail.
 1. CNN board encoder (Exp 2, done: about +1.5 points over the MLP; paired
    McNemar z 1.2–1.6 per pair, not significant; MLP kept for Exp 3 because it is
    3.3× faster).
-2. Observation additions: key-giving rooms left in the deck, rooms still needed
-   to reach the goal, keys still needed.
+2. Observation additions (Exp 3b, done: observation v2, 11.4% / 13.0% on the
+   test seeds, +5 points over MLP v1, significant). PPO setting changes (Exp 3a)
+   showed no gain and were stopped. Next: more key information (keys needed for
+   locks on the best route).
 3. Reward shaping for key saving and walking cost, kept well below the win reward.
 4. A policy head that outputs door logits per cell (convolutional).
 5. Longer training and more seeds per setup. First: an MLP run with seed 1, so

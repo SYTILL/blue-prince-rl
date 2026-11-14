@@ -299,8 +299,11 @@ agent.act(env) -> int     # a legal action for env's current state
 ```
 python -m blueprince.train --name ppo-base --timesteps 3e6
 python -m blueprince.train --name ppo-curriculum --timesteps 3e6 --cur-keys 6 --cur-gems 6 --cur-frac 0.5
+python -m blueprince.train --resume ppo-obs2 --timesteps 10e6       # continue a run up to 10M steps in total
 tensorboard --logdir results/training          # optional; the dashboard shows the same curves
 ```
+
+`--resume <run>` loads the run's `model.zip`, which holds the weights and the optimizer state. It then trains with the run's saved settings up to the new `--timesteps` total. Step count, episode count, best validation score, `progress.jsonl` and TensorBoard all continue in the same folder. Each resume seeds the environments with `seed + 10000 × k`, so training games do not repeat. `config.json` lists each resume under `resumes`. A killed run resumes from its last evaluation, because `model.zip` is saved at every evaluation. A resumed run keeps writing `best_model.zip`, so copy that file first if you need the earlier one.
 
 - `MaskablePPO("MlpPolicy")` from sb3-contrib on `--n-envs` parallel environments
   (`SubprocVecEnv`). The mask comes from `env.action_masks()`.

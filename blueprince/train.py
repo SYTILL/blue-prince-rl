@@ -15,6 +15,12 @@ seeds drawn from 2**62 values, so they do not hit either set in practice.
 
 Curriculum (optional): start with --cur-keys / --cur-gems and move linearly to the
 target --keys / --gems over the first --cur-frac of training.
+
+Resume: `--resume <run> --timesteps 10e6` continues that run from its latest
+model.zip (weights and optimizer state) up to 10M steps in total, with the run's
+own settings. progress.jsonl, best_model.zip and TensorBoard continue in the same
+folder. The environments get new seeds, so the training games do not repeat.
+A run that was killed resumes from its last evaluation (model.zip is saved then).
 """
 from __future__ import annotations
 
@@ -53,11 +59,19 @@ def make_callback(run_dir, args, target, val_seeds):
             self.best = -1.0
             self.stage = None
             self.t0 = time.time()
+            if args.resume:                 # carry on the run's counters
+                with open(os.path.join(run_dir, "progress.jsonl")) as f:
+                    rows = [json.loads(line) for line in f if line.strip()]
+                if rows:
+                    self.best = max(r["val"]["win_rate"] for r in rows)
+                    self.episodes = rows[-1]["episodes"]
+                    self.last_eval = rows[-1]["timesteps"]
+                    self.t0 -= rows[-1]["time"]
 
         def current_config(self):
             if args.cur_keys is None and args.cur_gems is None:
                 return target
-            frac = min(1.0, self.num_timesteps / max(1.0, args.cur_frac * args.timesteps))
+            frac = min(1.0, self.num_timesteps / max(1.0, args.cur_frac * args.cur_total))
             lerp = lambda a, b: int(round(a + (b - a) * frac))
             return replace(target,
                            keys=lerp(args.cur_keys if args.cur_keys is not None else target.keys, target.keys),
@@ -161,8 +175,25 @@ def main(argv=None):
     p.add_argument("--cnn-layers", type=int, default=3)
     p.add_argument("--obs", type=int, choices=(1, 2), default=1,
                    help="observation version: 1 = 834 numbers (Exp 1-2); 2 = adds goal, deck and offer-placement features")
+    p.add_argument("--resume", metavar="RUN", help="continue this run up to --timesteps in total (its own settings are used)")
     args = p.parse_args(argv)
     args.timesteps = int(args.timesteps)
+    resumes = []
+    if args.resume:
+        run = os.path.join(TRAINING_DIR, args.resume)
+        if not os.path.exists(os.path.join(run, "model.zip")):
+            raise SystemExit(f"no model.zip in {run}")
+        with open(os.path.join(run, "config.json")) as f:
+            saved = json.load(f)
+        keep = {"timesteps", "threads", "resume"}
+        for k, v in saved["args"].items():
+            if k not in keep:
+                setattr(args, k, v)
+        args.name = args.resume
+        args.cur_total = saved["args"].get("cur_total", saved["args"]["timesteps"])
+        resumes = saved.get("resumes", [])
+    else:
+        args.cur_total = args.timesteps
     if args.net is None:
         args.net = "256" if args.policy == "cnn" else "256,256"
 
@@ -176,35 +207,53 @@ def main(argv=None):
     target = replace(Config(), **overrides)
     name = args.name or time.strftime("%Y%m%d-%H%M%S")
     run_dir = os.path.join(TRAINING_DIR, name)
-    if os.path.exists(os.path.join(run_dir, "progress.jsonl")):
-        raise SystemExit(f"{run_dir} already has a run; pick another --name")
-    os.makedirs(run_dir, exist_ok=True)
-
     val_seeds = range(VAL_SEED_START, VAL_SEED_START + args.eval_games)
-    print(f"Run {name}: baselines on {args.eval_games} validation seeds...", flush=True)
-    baselines = {a.name: metrics(summarize(evaluate(a, val_seeds, target))) for a in (RandomAgent(), RuleBasedAgent())}
-    with open(os.path.join(run_dir, "config.json"), "w") as f:
-        json.dump({"name": name, "args": vars(args), "target": overrides, "val_seed_start": VAL_SEED_START,
-                   "baselines": baselines, "status": "running", "started": time.strftime("%Y-%m-%d %H:%M:%S")}, f, indent=2)
-    print("  " + "  ".join(f"{k} {100 * v['win_rate']:.1f}%" for k, v in baselines.items()), flush=True)
-
     vec_cls = SubprocVecEnv if args.n_envs > 1 else DummyVecEnv
-    env = make_vec_env(BluePrinceEnv, n_envs=args.n_envs, seed=args.seed, env_kwargs={"config": target, "obs_version": args.obs}, vec_env_cls=vec_cls)
-    net = [int(x) for x in args.net.split(",") if x]
-    policy_kwargs = {"net_arch": {"pi": net, "vf": net}}
-    if args.policy == "cnn":
-        from .networks import BoardCNN
-        policy_kwargs.update(features_extractor_class=BoardCNN,
-                             features_extractor_kwargs={"channels": args.cnn_channels, "layers": args.cnn_layers})
-    model = MaskablePPO(
-        "MlpPolicy", env, learning_rate=args.lr, n_steps=args.n_steps, batch_size=args.batch_size,
-        n_epochs=args.n_epochs, gamma=args.gamma, gae_lambda=args.gae_lambda, ent_coef=args.ent_coef,
-        clip_range=args.clip, policy_kwargs=policy_kwargs,
-        tensorboard_log=os.path.join(run_dir, "tb"), seed=args.seed, device="cpu", verbose=0)
+    # each resume seeds the environments differently, so training games do not repeat
+    env_seed = args.seed + 10_000 * (len(resumes) + 1) if args.resume else args.seed
+
+    if args.resume:
+        env = make_vec_env(BluePrinceEnv, n_envs=args.n_envs, seed=env_seed,
+                           env_kwargs={"config": target, "obs_version": args.obs}, vec_env_cls=vec_cls)
+        model = MaskablePPO.load(os.path.join(run_dir, "model.zip"), env=env, device="cpu",
+                                 tensorboard_log=os.path.join(run_dir, "tb"))
+        start = int(model.num_timesteps)
+        if start >= args.timesteps:
+            env.close()
+            raise SystemExit(f"{name} is already at {start:,} steps; give a larger --timesteps total")
+        resumes.append({"from_timesteps": start, "to_timesteps": args.timesteps, "env_seed": env_seed,
+                        "started": time.strftime("%Y-%m-%d %H:%M:%S")})
+        update_config_file(run_dir, status="running", resumes=resumes, args=vars(args))
+        print(f"Resuming {name} at {start:,} steps, up to {args.timesteps:,}", flush=True)
+    else:
+        if os.path.exists(os.path.join(run_dir, "progress.jsonl")):
+            raise SystemExit(f"{run_dir} already has a run; pick another --name, or --resume {name}")
+        os.makedirs(run_dir, exist_ok=True)
+        print(f"Run {name}: baselines on {args.eval_games} validation seeds...", flush=True)
+        baselines = {a.name: metrics(summarize(evaluate(a, val_seeds, target))) for a in (RandomAgent(), RuleBasedAgent())}
+        with open(os.path.join(run_dir, "config.json"), "w") as f:
+            json.dump({"name": name, "args": vars(args), "target": overrides, "val_seed_start": VAL_SEED_START,
+                       "baselines": baselines, "status": "running", "started": time.strftime("%Y-%m-%d %H:%M:%S")}, f, indent=2)
+        print("  " + "  ".join(f"{k} {100 * v['win_rate']:.1f}%" for k, v in baselines.items()), flush=True)
+        env = make_vec_env(BluePrinceEnv, n_envs=args.n_envs, seed=env_seed,
+                           env_kwargs={"config": target, "obs_version": args.obs}, vec_env_cls=vec_cls)
+        net = [int(x) for x in args.net.split(",") if x]
+        policy_kwargs = {"net_arch": {"pi": net, "vf": net}}
+        if args.policy == "cnn":
+            from .networks import BoardCNN
+            policy_kwargs.update(features_extractor_class=BoardCNN,
+                                 features_extractor_kwargs={"channels": args.cnn_channels, "layers": args.cnn_layers})
+        model = MaskablePPO(
+            "MlpPolicy", env, learning_rate=args.lr, n_steps=args.n_steps, batch_size=args.batch_size,
+            n_epochs=args.n_epochs, gamma=args.gamma, gae_lambda=args.gae_lambda, ent_coef=args.ent_coef,
+            clip_range=args.clip, policy_kwargs=policy_kwargs,
+            tensorboard_log=os.path.join(run_dir, "tb"), seed=args.seed, device="cpu", verbose=0)
     callback = make_callback(run_dir, args, target, val_seeds)
     status = "done"
     try:
-        model.learn(total_timesteps=args.timesteps, callback=callback, tb_log_name="ppo")
+        # with reset_num_timesteps=False, SB3 adds the steps already done to this number
+        model.learn(total_timesteps=args.timesteps - int(model.num_timesteps), callback=callback,
+                    tb_log_name="ppo", reset_num_timesteps=not args.resume)
     except KeyboardInterrupt:
         status = "stopped"
         model.save(os.path.join(run_dir, "model.zip"))
