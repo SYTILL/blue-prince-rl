@@ -236,14 +236,54 @@ Findings:
   Exp 2 and 3a this points again at the information and the reward, not at
   training length, the network or the PPO settings.
 
+## 2026-11-16 · Exp 5: potential-based reward shaping (stopped at 1.7–1.8M)
+
+Question: does denser feedback about keys, steps and dead ends help the
+observation v2 MLP get past ~12%? Design and reasons: PROJECT_LOG D24.
+
+Shaping adds γΦ(s′) − Φ(s) to every reward (γ = 0.99, same as PPO), with
+Φ = w_keys·min(keys, 5) + w_steps·steps/50 + w_doors·min(reachable unopened doors, 4),
+and Φ = 0 when the game ends. Everything else is as in Exp 3b (`--obs 2 --net 256,256
+--n-envs 8`, 3M steps), so the baselines are `ppo-obs2` / `ppo-obs2-s1b` at 3M
+(test 11.4% / 13.0%, `best_model_3M.zip`). Four runs side by side, 4 torch threads each.
+
+| Run | Seed | w_keys | w_steps | w_doors | Best val (at) | Test win | Test avg rank |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `ppo-shape-ks` | 0 | 0.2 | 0.5 | 0 | 10.3% (1.8M) | not run | |
+| `ppo-shape-ks-s1` | 1 | 0.2 | 0.5 | 0 | 11.3% (1.8M) | not run | |
+| `ppo-shape-ksd` | 0 | 0.2 | 0.5 | 0.1 | 9.7% (1.4M) | not run | |
+| `ppo-shape-ksd-s1` | 1 | 0.2 | 0.5 | 0.1 | 10.7% (1.3M) | not run | |
+
+Stopped by the user at 17:34 (1.7–1.8M steps of 3M); started 16:30. `model.zip`
+holds the last weights, so `--resume <run> --timesteps 3e6` finishes them.
+
+Mean validation win rate, same step ranges as the unshaped baselines:
+
+| Steps | ks s0 | ks s1 | ksd s0 | ksd s1 | `ppo-obs2` | `ppo-obs2-s1b` |
+|---|---:|---:|---:|---:|---:|---:|
+| 0.5–1M | 4.5% | 5.7% | 6.0% | 3.9% | 3.0% | 7.1% |
+| 1–1.8M (baselines 1–2M) | 7.1% | 8.3% | 7.6% | 8.3% | 7.8% | 8.6% |
+
+Interim finding: up to 1.8M, shaping does not learn faster than no shaping; all
+six runs are within the ±2-point noise of a 300-game evaluation. It could still
+matter later, but nothing suggests a large effect. Loss causes were not analysed.
+
+Note (2026-11-16): rule-based loses as many games on keys as PPO; the gap to
+rule-based is steps and early dead ends (PROJECT_LOG section 4). Judge any rerun
+on `out_of_steps` and early `no_doors` as well as win rate.
+
 ## Next candidates
 
 1. ~~**Observation additions**~~: done as observation v2 (Exp 3b). Still open:
    keys needed for the locks on the best route.
-2. **Reward shaping**: nothing rewards keeping 3 keys for the end or penalises
+2. **Reward shaping** (Exp 5, stopped at 1.8M, no early gain): nothing rewards keeping 3 keys for the end or penalises
    walking. Options: small penalty per step walked, bonus for reaching rank 8–9
    with 3+ keys. Keep the total well below the win reward. Targets the key losses
    (45–49% of games for observation v2).
 3. **Policy head that follows the board**: door actions are per cell and side, so
    a convolutional head (4 logits per cell) instead of a dense head.
 4. ~~**Longer training**~~: Exp 4, flat after 3M. More seeds per setup is still useful.
+5. **Imitation of the rule-based agent, then PPO**: rule-based loses as many
+   games on keys (49%) as PPO; the gap is steps and early dead ends (PROJECT_LOG
+   section 4, 2026-11-16). Behaviour cloning from rule-based games would start PPO
+   from its step and room choices.

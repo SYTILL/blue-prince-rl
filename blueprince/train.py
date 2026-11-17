@@ -175,6 +175,9 @@ def main(argv=None):
     p.add_argument("--cnn-layers", type=int, default=3)
     p.add_argument("--obs", type=int, choices=(1, 2), default=1,
                    help="observation version: 1 = 834 numbers (Exp 1-2); 2 = adds goal, deck and offer-placement features")
+    p.add_argument("--shape-keys", type=float, default=0.0, help="shaping potential per key in hand (Exp 5)")
+    p.add_argument("--shape-steps", type=float, default=0.0, help="shaping potential for all starting steps left")
+    p.add_argument("--shape-doors", type=float, default=0.0, help="shaping potential per reachable unopened door")
     p.add_argument("--resume", metavar="RUN", help="continue this run up to --timesteps in total (its own settings are used)")
     args = p.parse_args(argv)
     args.timesteps = int(args.timesteps)
@@ -208,13 +211,16 @@ def main(argv=None):
     name = args.name or time.strftime("%Y%m%d-%H%M%S")
     run_dir = os.path.join(TRAINING_DIR, name)
     val_seeds = range(VAL_SEED_START, VAL_SEED_START + args.eval_games)
+    env_kwargs = {"config": target, "obs_version": args.obs,
+                  "shape_keys": getattr(args, "shape_keys", 0.0), "shape_steps": getattr(args, "shape_steps", 0.0),
+                  "shape_doors": getattr(args, "shape_doors", 0.0), "shape_gamma": args.gamma}
     vec_cls = SubprocVecEnv if args.n_envs > 1 else DummyVecEnv
     # each resume seeds the environments differently, so training games do not repeat
     env_seed = args.seed + 10_000 * (len(resumes) + 1) if args.resume else args.seed
 
     if args.resume:
         env = make_vec_env(BluePrinceEnv, n_envs=args.n_envs, seed=env_seed,
-                           env_kwargs={"config": target, "obs_version": args.obs}, vec_env_cls=vec_cls)
+                           env_kwargs=env_kwargs, vec_env_cls=vec_cls)
         model = MaskablePPO.load(os.path.join(run_dir, "model.zip"), env=env, device="cpu",
                                  tensorboard_log=os.path.join(run_dir, "tb"))
         start = int(model.num_timesteps)
@@ -236,7 +242,7 @@ def main(argv=None):
                        "baselines": baselines, "status": "running", "started": time.strftime("%Y-%m-%d %H:%M:%S")}, f, indent=2)
         print("  " + "  ".join(f"{k} {100 * v['win_rate']:.1f}%" for k, v in baselines.items()), flush=True)
         env = make_vec_env(BluePrinceEnv, n_envs=args.n_envs, seed=env_seed,
-                           env_kwargs={"config": target, "obs_version": args.obs}, vec_env_cls=vec_cls)
+                           env_kwargs=env_kwargs, vec_env_cls=vec_cls)
         net = [int(x) for x in args.net.split(",") if x]
         policy_kwargs = {"net_arch": {"pi": net, "vf": net}}
         if args.policy == "cnn":

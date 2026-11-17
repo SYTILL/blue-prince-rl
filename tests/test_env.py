@@ -268,3 +268,49 @@ def test_ppo_agent_reads_obs_version_from_model():
         agent = PPOAgent(model=model)
         assert agent.obs_version == version
         assert len(evaluate(agent, range(3))) == 3
+
+
+# ---------------------------------------------------------------- reward shaping (Exp 5)
+
+def _play(env, seed, pick=0):
+    import random as _r
+    rng = _r.Random(seed)
+    env.reset(seed=seed)
+    rewards, done = [], False
+    while not done:
+        legal = [a for a, ok in enumerate(env.action_masks()) if ok]
+        _, r, term, trunc, _ = env.step(rng.choice(legal))
+        rewards.append(r)
+        done = term or trunc
+    return rewards
+
+
+def test_shaping_off_by_default_matches_game_reward():
+    from blueprince.env import BluePrinceEnv
+    for seed in range(5):
+        plain = _play(BluePrinceEnv(), seed)
+        zero = _play(BluePrinceEnv(shape_keys=0, shape_steps=0, shape_doors=0), seed)
+        assert plain == zero
+
+
+def test_shaping_telescopes_to_minus_start_potential():
+    from blueprince.env import BluePrinceEnv, potential
+    from blueprince.game import Game, Config
+    w = (0.2, 0.5, 0.1)
+    for seed in range(10):
+        plain = _play(BluePrinceEnv(), seed)
+        shaped = _play(BluePrinceEnv(shape_keys=w[0], shape_steps=w[1], shape_doors=w[2], shape_gamma=1.0), seed)
+        assert len(plain) == len(shaped)
+        phi0 = potential(Game(seed, Config()), *w)
+        assert abs((sum(shaped) - sum(plain)) - (-phi0)) < 1e-9
+
+
+def test_potential_terms():
+    from blueprince.env import potential
+    from blueprince.game import Game, Config
+    g = Game(0, Config())
+    assert potential(g) == 0
+    assert abs(potential(g, w_keys=0.2) - 0.2 * g.keys) < 1e-12
+    assert abs(potential(g, w_steps=0.5) - 0.5) < 1e-12        # all 50 steps left
+    doors = potential(g, w_doors=1.0)
+    assert 1 <= doors <= 4

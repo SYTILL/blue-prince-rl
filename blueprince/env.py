@@ -198,18 +198,51 @@ def _encode_plan(game: Game, dist, obs):
         obs[o + 6] = lock_sum / new if new else 0
 
 
+KEY_CAP = 5        # keys above this add no potential
+DOOR_CAP = 4       # reachable unopened doors above this add no potential
+
+
+def potential(game: Game, w_keys=0.0, w_steps=0.0, w_doors=0.0) -> float:
+    """Shaping potential of a state (Exp 5). 0 once the game is over.
+
+    keys:  w_keys per key in hand, up to KEY_CAP
+    steps: w_steps * steps left / starting steps
+    doors: w_doors per unopened door the player can walk to, up to DOOR_CAP
+    """
+    if game.over or game.truncated:
+        return 0.0
+    phi = w_keys * min(game.keys, KEY_CAP) + w_steps * game.steps / game.cfg.steps
+    if w_doors:
+        dist = game.bfs()[0]
+        doors = sum(1 for r, c, _, _, _ in game.frontier() if (r, c) in dist)
+        phi += w_doors * min(doors, DOOR_CAP)
+    return phi
+
+
 class BluePrinceEnv(gym.Env):
     """Minimal Blue Prince.
 
     reset(seed=s) starts the game with seed s. reset() without a seed draws the
     next game seed from the environment's own generator, so a training run is
     reproducible from its first seed.
+
+    Reward shaping (off by default): with any of shape_keys / shape_steps /
+    shape_doors set, step() adds gamma * phi(s') - phi(s) for the potential
+    above. This is potential-based shaping (Ng, Harada and Russell, 1999), so
+    the optimal policy is unchanged; it only gives earlier feedback. The game's
+    own reward and every evaluation metric are unaffected.
     """
 
     metadata = {"render_modes": ["ansi"]}
 
-    def __init__(self, config: Optional[Config] = None, render_mode: Optional[str] = None, obs_version: int = 1):
+    def __init__(self, config: Optional[Config] = None, render_mode: Optional[str] = None, obs_version: int = 1,
+                 shape_keys: float = 0.0, shape_steps: float = 0.0, shape_doors: float = 0.0,
+                 shape_gamma: float = 0.99):
         self.config = config or Config()
+        self.shaping = (shape_keys, shape_steps, shape_doors)
+        self.shape_gamma = shape_gamma
+        self.shaped = any(self.shaping)
+        self._phi = 0.0
         self.render_mode = render_mode
         self.obs_version = obs_version
         self.action_space = spaces.Discrete(N_ACTIONS)
@@ -220,10 +253,16 @@ class BluePrinceEnv(gym.Env):
         super().reset(seed=seed)
         game_seed = seed if seed is not None else int(self.np_random.integers(2 ** 62))
         self.game = Game(game_seed, self.config)
+        if self.shaped:
+            self._phi = potential(self.game, *self.shaping)
         return encode_observation(self.game, self.obs_version), self._info()
 
     def step(self, action):
         reward = self.game.step(action)       # raises ValueError on an illegal action
+        if self.shaped:
+            phi = potential(self.game, *self.shaping)
+            reward += self.shape_gamma * phi - self._phi
+            self._phi = phi
         return (encode_observation(self.game, self.obs_version), float(reward), self.game.over,
                 self.game.truncated, self._info())
 

@@ -9,10 +9,10 @@ This repository holds:
 - an evaluation script on fixed test seeds,
 - a local dashboard that shows evaluation and training and replays any game.
 
-## Status (2026-11-13)
+## Status (2026-11-16)
 
 Done:
-- **Environment**: rules engine, Gymnasium wrapper and action masking, with 219 tests.
+- **Environment**: rules engine, Gymnasium wrapper and action masking, with 222 tests.
 - **Baselines and evaluation**: random and rule-based agents, evaluated on 1000 test seeds.
 - **PPO**: training pipeline, validation and checkpoints. Exp 1 (MLP) and Exp 2 (CNN) are finished.
 - **Observation v2** (`--obs 2`, 867 numbers): adds goal distance, step slack, keys short, deck contents, and what each offered blueprint does once placed. Version 1 models still load.
@@ -44,12 +44,12 @@ What the results show:
 
 All the details are in three files:
 - [EXPERIMENTS.md](EXPERIMENTS.md): every training run with its settings and results.
-- [PROJECT_LOG.md](PROJECT_LOG.md): timeline, decisions D1–D23 with their reasons, analysis notes and material for the report.
+- [PROJECT_LOG.md](PROJECT_LOG.md): timeline, decisions D1–D24 with their reasons, analysis notes and material for the report.
 - [DESIGN.md](DESIGN.md): how the system works.
 
 ## Where to start
 
-1. **Set up and check.** Follow *Setup* below, then run `python -m pytest`. All 219 tests should pass.
+1. **Set up and check.** Follow *Setup* below, then run `python -m pytest`. All 222 tests should pass.
 2. **Read [DESIGN.md](DESIGN.md).** It covers:
    - the rules,
    - the action space (183 actions with a mask),
@@ -67,13 +67,10 @@ All the details are in three files:
    To continue a finished or stopped run, use `--resume`. For example, `python -m blueprince.train --resume my-run --timesteps 10e6` trains it up to 10M steps in total, with its own settings.
 5. **Next tasks**, ordered by expected value. [EXPERIMENTS.md](EXPERIMENTS.md) and [PROJECT_LOG.md](PROJECT_LOG.md) section 5 have the reasoning.
    1. **Qualitative analysis.** Replay about 20 losses of `ppo-obs2-s1b` in the dashboard and describe the typical mistakes, especially around keys. The proposal promises this, and the status report needs it.
-   2. **Reward shaping** on top of observation v2 (recommended next experiment):
-      - a bonus for reaching rank 8–9 with 3 or more keys,
-      - a small cost per step walked.
-
-      Keep both well below the +10 win reward. This targets the key losses.
-   3. **More key information** in the observation, for example expected keys needed for the locks on the best route.
-   4. ~~Longer training~~: tried in Exp 4. Flat after 3M steps, so 3M is enough for comparing setups.
+   2. **Imitation of the rule-based agent, then PPO.** Rule-based loses as many games on keys as PPO (49%); the gap is running out of steps (2–3× rule) and early dead ends ([PROJECT_LOG.md](PROJECT_LOG.md) section 4). Pretraining on rule-based games would start PPO from its step and room choices.
+   3. **Reward shaping** on top of observation v2. Potential-based shaping is implemented (`--shape-keys`, `--shape-steps`, `--shape-doors`, D24). Exp 5 was stopped at 1.8M steps with no early gain; finish it with `--resume` if worth checking.
+   4. **More key information** in the observation, for example expected keys needed for the locks on the best route.
+   5. ~~Longer training~~: tried in Exp 4. Flat after 3M steps, so 3M is enough for comparing setups.
 
 6. **Log what you do.** Add each run to [EXPERIMENTS.md](EXPERIMENTS.md) and each decision to [PROJECT_LOG.md](PROJECT_LOG.md), with the date and the reason. The report will be written from these files.
 
@@ -92,7 +89,7 @@ pip install -r requirements.txt
 ## Run
 
 ```
-python -m pytest                                   # 219 tests, about a minute
+python -m pytest                                   # 222 tests, about a minute
 python -m blueprince.evaluate                      # random + rule on the 1000 test seeds
 python -m blueprince.evaluate --out results --plot # also write CSV, JSON and PNG
 python -m blueprince.evaluate --agents rule --n 200 --keys 5 --gems 5

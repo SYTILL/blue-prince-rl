@@ -28,6 +28,9 @@ section. Related files:
 | 2026-11-13 19:20 | Weeks 8–9: beta | Exp 3b done: observation v2 wins 11.4% / 13.0% on the test seeds vs 7.1–7.5% for MLP v1 (McNemar z 3.1–4.6) and 8.9–9.0% for the CNN. First clear gain |
 | 2026-11-13 20:04 | Weeks 8–9: beta | `--resume` added to training. Exp 4: both observation v2 runs continue from 3M to 10M steps |
 | 2026-11-13 21:29 | Weeks 8–9: beta | Exp 4 stopped by the user at 6.6M steps: validation flat near 12% after 3M for both seeds. Longer training does not help; next is reward shaping for keys |
+| 2026-11-16 16:30 | Weeks 8–9: beta | Potential-based reward shaping added (`--shape-keys/-steps/-doors`, D24). Exp 5: four 3M runs, keys+steps and keys+steps+doors, two seeds each |
+| 2026-11-16 17:00 | Weeks 8–9: beta | Analysis: rule-based loses as many games on keys (49%) as PPO; the gap is steps (2–3×) and early dead ends. Imitation of rule-based added as a candidate |
+| 2026-11-16 17:34 | Weeks 8–9: beta | Exp 5 stopped by the user at 1.7–1.8M steps: shaping no faster than no shaping so far (val 7–8% at 1–1.8M, same as baselines) |
 
 ---
 
@@ -205,6 +208,30 @@ Caveats for the report:
 - The recent training win rate restarts its 1000-game window.
 - Neither matters for PPO, which collects a fresh rollout every update.
 
+**D24. Reward shaping is potential-based** (user asked to continue experimenting, 2026-11-16)
+Why shaping: Exp 2–4 showed that the network, the PPO settings and training
+length do not help; observation v2 did. The remaining losses of the v2 models on
+the test seeds are key shortages (`out_of_keys` 23–27%, `goal_keys` 22%), early
+dead ends (`no_doors` 20–31%, many at rank 2–3) and running out of steps
+(13–18%). The only signal is a +10 win at the end and small rank milestones, so
+spending a key or a step, or drafting a dead end, is never punished directly.
+
+Options:
+- (a) Ad-hoc bonuses: e.g. +x for reaching rank 8–9 with 3+ keys, −y per step walked.
+- (b) Potential-based shaping: add γΦ(s′) − Φ(s) for a state potential Φ.
+
+Chosen: (b). Ng, Harada and Russell (1999) show it leaves the optimal policy
+unchanged, so it cannot teach the agent to farm the bonus instead of winning;
+(a) changes the task and needs its weights tuned against the win reward. With
+(b), spending a key or step costs reward at once and finding one pays at once,
+which is the credit the agent seems to lack.
+
+Φ = 0.2 per key in hand (up to 5) + 0.5 × steps left / starting steps
++ 0.1 per unopened door the player can walk to (up to 4); Φ = 0 at the end.
+The largest Φ is 1.9, well below the +10 win. Weights picked by hand to be
+comparable to the rank milestones (rank 7 = 0.25); not tuned.
+Evaluation is unchanged: win rate and the game's own reward.
+
 ### Tooling
 
 **D16. Python virtual environment in `project/.venv`** (user)
@@ -265,6 +292,31 @@ Sanity cases: all four pass (`DESIGN.md` section 7).
 
 To do: replay a sample of PPO losses in the dashboard and describe the typical
 failure (routes, key use, detours), as the proposal's qualitative analysis says.
+
+**Where observation v2 loses to rule-based (2026-11-16, test seeds, per game).**
+
+| | Rule-based | v2 seed 0 | v2 seed 1 |
+|---|---:|---:|---:|
+| Win | 24.4% | 11.4% | 13.0% |
+| `out_of_steps` | 5.5% | 12.8% | 18.1% |
+| `out_of_keys` + `goal_keys` | 49.2% | 45.2% | 49.1% |
+| `no_doors` | 20.9% | 30.6% | 19.8% |
+| `no_doors` at rank ≤ 4 | 4.8% | 17.2% | 8.7% |
+| Rooms drafted | 24.3 | 18.4 | 19.1 |
+| Keys / gems used | 6.1 / 5.8 | 4.9 / 4.1 | 5.4 / 4.4 |
+
+- Key losses are as common for rule-based (49%) as for PPO. They are the game's
+  hard part, not PPO's specific weakness. The key losses happen with 15–21 steps
+  left, for both agents.
+- The gap comes from running out of steps (2–3× rule) and early dead ends
+  (`no_doors` at rank ≤ 4, 2–3.5×). PPO drafts fewer rooms and spends fewer keys
+  and gems; its early dead ends end with 4.7 keys unused.
+- Of the games rule-based wins and PPO loses (206 / 192), PPO lost 101–112 on
+  keys, 34–69 on no doors, 36–46 on steps. PPO also wins 76–78 games rule-based
+  loses, so the two play differently.
+- Consequence: Exp 5 should be judged by `out_of_steps` and early `no_doors`, not
+  only by key losses. If shaping does not close the gap, next candidate is
+  imitation of the rule-based agent (behaviour cloning) before PPO.
 
 ---
 

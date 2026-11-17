@@ -171,6 +171,14 @@ with random actions).
 The rank rewards total less than a fifth of the win reward. Both values are in
 `Config` (`milestone_scale`, `win_reward`).
 
+**Optional shaping (Exp 5)**: `BluePrinceEnv(shape_keys=, shape_steps=, shape_doors=,
+shape_gamma=)`, or `--shape-keys/--shape-steps/--shape-doors` in training, adds
+γΦ(s′) − Φ(s) to each reward, where `env.potential(game, …)` is
+w_keys·min(keys, 5) + w_steps·steps left/starting steps + w_doors·min(walkable
+unopened doors, 4), and 0 once the game is over. This is potential-based
+shaping, so the optimal policy does not change. It is off by default; the game's
+`total_reward` and all evaluation metrics never include it.
+
 - **Win** (`terminated`): the automatic Antechamber entry.
 - **Loss** (`terminated`): no legal action in the door phase. `info["loss_cause"]` is one of:
   - `out_of_steps`: no steps left, or every door is too far for the steps left
