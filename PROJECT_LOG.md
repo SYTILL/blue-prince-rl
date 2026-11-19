@@ -14,7 +14,7 @@ section. Related files:
 
 | Date | Proposal milestone | Done |
 |---|---|---|
-| Weeks 1–4 | Proposal | Proposal submitted. Rules drafted in Korean notes (`actions.md`, `rooms.md`) and a playable web version (`web/drafting-manor.html`) |
+| Weeks 1–4 | Proposal | Proposal submitted. Rules drafted in notes (`actions.md`, `rooms.md`) and a playable web version (`web/drafting-manor.html`) |
 | 2026-11-11 (week 7) | Weeks 5–6: environment | Python rules engine ported from the web version; Gymnasium environment with action masking; 211 tests. The team was about 1–2 weeks behind the proposal schedule before this day |
 | 2026-11-11 | Week 7: alpha | Random and rule-based agents; evaluation on 1000 test seeds; sanity cases checked. Rule-based 24.4%, random 0.0% |
 | 2026-11-11 | (extra) | Local dashboard: live evaluation, saved runs, step-by-step game replay. Episodes now store their action list so every game can be replayed |

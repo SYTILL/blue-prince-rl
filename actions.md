@@ -1,76 +1,76 @@
-# PPO 행동(action) 정의
+# PPO action definition
 
-## 한눈에
-- 행동 공간: **`Discrete(183)`**. 신경망 출력은 크기 183으로 고정이고, 지금 할 수 없는 행동은 **마스크**로 막는다 (sb3-contrib `MaskablePPO`).
-- 게임 한 턴은 에이전트 행동 **두 번**: ① 문 고르기 → ② 도면 고르기.
-- 걷기와 Antechamber 입장은 행동이 아니라 **자동**으로 처리한다.
+## At a glance
+- Action space: **`Discrete(183)`**. The network output has a fixed size of 183, and actions that are not possible right now are blocked with a **mask** (sb3-contrib `MaskablePPO`).
+- One game turn is **two** agent actions: ① pick a door → ② pick a blueprint.
+- Walking and entering the Antechamber are not actions; they happen **automatically**.
 
-| 번호 | 의미 | 쓰는 단계 |
+| Number | Meaning | Phase |
 |---|---|---|
-| 0 – 179 | 문 열기: (칸, 방향) 하나 | 문 단계 |
-| 180, 181, 182 | 뽑힌 도면 1·2·3번째 고르기 | 도면 단계 |
+| 0 – 179 | Open a door: one (cell, direction) | door phase |
+| 180, 181, 182 | Pick the 1st, 2nd or 3rd drawn blueprint | draft phase |
 
-## 1. 문 열기 (0–179)
+## 1. Open a door (0–179)
 ```
 index = ((r - 1) * 5 + (c - 1)) * 4 + d
-r = 행 1..9 (1이 아래), c = 열 1..5 (A..E), d = N 0, E 1, S 2, W 3
+r = row 1..9 (1 is the bottom), c = column 1..5 (A..E), d = N 0, E 1, S 2, W 3
 ```
-뜻: "칸 (r, c)에 있는 방의 d쪽 문을 연다."
+Meaning: "open the d-side door of the room at cell (r, c)."
 
-예: 시작 방 Entrance Hall은 C1 = (1, 3).
-- 북쪽 문 = 8
-- 동쪽 문 = 9
-- 서쪽 문 = 11
+Example: the starting room, Entrance Hall, is C1 = (1, 3).
+- North door = 8
+- East door = 9
+- West door = 11
 
-**할 수 있는 조건 (마스크 = 1)**: 아래를 모두 만족해야 한다.
-- 지금이 문 단계
-- (r, c)에 방이 있고, 그 방에 d쪽 문이 있다
-- 문 너머 칸이 격자 안이고 비어 있다
-- 그 방이 Antechamber가 아니다 (바깥에서 열 수 없음)
-- 플레이어 위치에서 그 방까지 길이 있다 (BFS)
-- 걸음 ≥ 거리 + 1 (걸어가기 + 새 방 입장)
-- 잠긴 문이면 열쇠 ≥ 1
+**Legal when (mask = 1)**: all of the following hold.
+- It is the door phase
+- There is a room at (r, c), and that room has a door on side d
+- The cell beyond the door is inside the grid and empty
+- That room is not the Antechamber (it cannot be opened from outside)
+- There is a path from the player's position to that room (BFS)
+- Steps ≥ distance + 1 (walking there + entering the new room)
+- If the door is locked, keys ≥ 1
 
-**실행하면** 아래 순서로 처리한다.
-1. 최단 경로로 자동 이동한다. 걸음은 거리만큼 줄어든다.
-2. 잠긴 문이면 열쇠 1개를 쓴다.
-3. 도면 3장을 뽑고 도면 단계로 넘어간다.
-   - 그 칸에 놓을 수 있는 방이 덱에 하나도 없으면, 그 문은 막힌 문이 되고 문 단계에 그대로 머문다.
+**When taken**, it is processed in this order.
+1. The player walks there along the shortest path. Steps go down by the distance.
+2. If the door is locked, one key is spent.
+3. Three blueprints are drawn and the game moves to the draft phase.
+   - If the deck has no room that can be placed in that cell, the door becomes a dead door and the game stays in the door phase.
 
-## 2. 도면 고르기 (180–182)
-뜻: 뽑힌 도면 중 `action − 180`번째를 그 칸에 놓는다.
+## 2. Pick a blueprint (180–182)
+Meaning: place the `action − 180`-th drawn blueprint in that cell.
 
-**할 수 있는 조건**: 아래를 모두 만족해야 한다.
-- 지금이 도면 단계
-- 그 자리에 도면이 있다 (뽑힌 수가 3장 미만일 수 있음)
-- 보석 ≥ 그 도면의 비용 (첫 칸은 비용 0)
+**Legal when**: all of the following hold.
+- It is the draft phase
+- There is a blueprint in that slot (fewer than 3 may be drawn)
+- Gems ≥ the cost of that blueprint (the first slot costs 0)
 
-**실행하면** 아래 순서로 처리한다.
-1. 보석을 내고, 그 방을 덱에서 뺀다.
-2. 방을 놓는다. 방향은 뽑을 때 이미 정해져 있다(ㄱ자는 좌/우 고정, T자는 무작위). 그래서 관측의 도면 특징에 문 방향이 들어간다.
-3. 새로 생긴 문의 잠김을 정한다. 기존 문과 맞닿은 문은 열린다.
-4. 입장한다(걸음 −1). 그다음 방의 보상(걸음·열쇠·보석)을 받는다.
-5. 처음 도착한 행이면 마일스톤 보상을 준다.
-6. 자동 입장 검사와 종료 검사를 한 뒤, 문 단계로 돌아간다.
+**When taken**, it is processed in this order.
+1. Pay the gems and remove the room from the deck.
+2. Place the room. Its orientation is already fixed when it is drawn (L-shaped rooms have a fixed left/right turn, T-shaped rooms are random). That is why the door directions are part of the blueprint features in the observation.
+3. Decide the locks of the new doors. A door that meets an existing door is open.
+4. Enter (steps −1). Then receive the room's reward (steps, keys, gems).
+5. If this is a row reached for the first time, give the milestone reward.
+6. Run the automatic entry check and the end check, then go back to the door phase.
 
-## 3. 자동으로 처리하는 것 (행동 아님)
-- **이동**: 문을 고르면 그 문까지 최단 경로로 자동으로 걷는다. 그냥 돌아다니기만 하는 행동은 없다. 걷기만 하면 걸음만 줄어서 손해이기 때문이다.
-- **Antechamber 입장**: 길이 이어져 있고 걸음 ≥ 거리, 열쇠 ≥ 3이면 그 즉시 자동으로 들어가고 승리(+10)한다. 들어가는 게 항상 최선이라 선택지로 둘 이유가 없다.
-  - 웹 버전에서는 사람이 직접 누르지만, 결과는 같다.
+## 3. Handled automatically (not actions)
+- **Movement**: picking a door walks to it automatically along the shortest path. There is no action for just walking around, because walking alone only costs steps.
+- **Entering the Antechamber**: if a path is connected, steps ≥ distance and keys ≥ 3, the player enters at once and wins (+10). Entering is always the best choice, so there is no reason to make it an option.
+  - In the web version a person clicks it, but the result is the same.
 
-## 4. 종료
-- **승리**: Antechamber 자동 입장. 보상 +10.
-- **패배**: 문 단계에서 마스크가 전부 0이다 (걸음 소진, 열쇠 부족, 열 문이 없음).
-  - 실패 원인은 평가용으로 `info`에 기록한다.
-- **잘림(truncation)**: 행동 300번에서 안전장치로 끊는다. 정상이라면 99장 덱 때문에 그 전에 끝난다.
+## 4. Ending
+- **Win**: automatic Antechamber entry. Reward +10.
+- **Loss**: in the door phase the mask is all 0 (out of steps, not enough keys, no door to open).
+  - The cause of the loss is recorded in `info` for evaluation.
+- **Truncation**: cut off at 300 actions as a safeguard. Normally the 99-card deck ends the game before that.
 
-## 왜 이렇게 정했나
-- **크기 고정 + 마스크**: 신경망 출력 크기는 고정되어야 한다. 실제로 가능한 행동은 보통 2–10개뿐이지만, 183개를 다 두고 나머지를 마스크로 막는 게 표준 방법이다.
-- **칸 + 방향으로 문 번호 매기기**: 같은 문은 판이 달라도 항상 같은 번호라서, 신경망이 "위쪽 가운데 문은 좋다" 같은 위치 규칙을 배우기 쉽다.
-- **두 단계로 나누기**: "문 × 도면" 조합을 한 번에 고르게 하면, 도면을 보기 전에 골라야 해서 원작 규칙과 맞지 않는다.
-  - 그래서 관측에 **단계 표시**(문 단계 / 도면 단계)를 넣는다.
-  - 한 판의 행동 수가 2배가 되므로 할인율 γ는 0.99 이상으로 둔다.
+## Why it was designed this way
+- **Fixed size + mask**: the network output size has to be fixed. Usually only 2–10 actions are actually possible, but keeping all 183 and masking the rest is the standard approach.
+- **Numbering doors by cell + direction**: the same door always has the same number in every game, so the network can easily learn position rules such as "the top middle door is good".
+- **Two phases**: choosing a "door × blueprint" combination in one step would mean choosing before seeing the blueprints, which does not match the original rules.
+  - So the observation includes a **phase flag** (door phase / draft phase).
+  - The number of actions per game doubles, so the discount factor γ is set to 0.99 or higher.
 
-## 아직 정할 것
-- 할인율 γ 값 (0.99 vs 1.0).
-- 막힌 문(덱에 놓을 방 없음)이 생겼을 때 작은 벌점을 줄지.
+## Still to decide
+- The value of the discount factor γ (0.99 vs 1.0).
+- Whether to give a small penalty when a dead door appears (no room in the deck can be placed).

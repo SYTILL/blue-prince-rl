@@ -123,4 +123,4 @@ Test seeds (1,000,000 and up) are for final comparisons only. Training validates
 | `EXPERIMENTS.md` | every training experiment, results and next ideas |
 | `PROJECT_LOG.md` | timeline, every decision with its reason, results, analysis notes, report material |
 | `web/drafting-manor.html` | playable web version (the rule reference) |
-| `actions.md`, `rooms.md` | original design notes (Korean) |
+| `actions.md`, `rooms.md` | original design notes: action space and room list |

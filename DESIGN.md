@@ -7,7 +7,7 @@ training pipeline are implemented and tested. First PPO training runs are in
 
 This document is the single reference for the code in `blueprince/`. It is
 written so that a teammate, or an AI assistant given this file, can work on the
-project without reading the Korean notes (`actions.md`, `rooms.md`).
+project without reading the original notes (`actions.md`, `rooms.md`).
 
 ## 1. The game
 
